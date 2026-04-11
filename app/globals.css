@@ -1,0 +1,409 @@
+:root {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-dark: #3730a3;
+  --pill-dark: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.screen {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 16px 16px 28px;
+}
+
+.screen-center {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+
+.hero-icon,
+.trophy {
+  width: 56px;
+  height: 56px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0e7ff;
+  font-size: 28px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.lead {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.compact-card {
+  padding: 14px;
+}
+
+.label {
+  display: block;
+  margin: 12px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0 14px;
+  background: #fff;
+}
+
+.input:focus {
+  outline: 2px solid #c7d2fe;
+  border-color: #a5b4fc;
+}
+
+.button {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  margin-top: 12px;
+  font-weight: 700;
+}
+
+.button-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.button-primary:hover {
+  background: var(--primary-dark);
+}
+
+.button-secondary {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--muted);
+}
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.three-col-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.small-cards {
+  margin-top: 14px;
+}
+
+.mini-card,
+.tiny-stat,
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.top-gap {
+  margin-top: 10px;
+}
+
+.top-gap-small {
+  margin-top: 4px;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: -16px -16px 12px;
+  padding: 14px 16px 12px;
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.pill-dark {
+  color: #fff;
+  background: var(--pill-dark);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+.legend-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-pill,
+.state-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.movie-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.movie-tile {
+  width: 100%;
+  text-align: left;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.poster-box {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  background: #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.movie-title {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.single-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movie-subtitle {
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin-top: 4px;
+}
+
+.tile-footer {
+  margin-top: 10px;
+}
+
+.state-none {
+  background: #fff;
+}
+
+.state-unseen {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.state-meh {
+  background: #fff7ed;
+}
+
+.state-liked {
+  background: #eff6ff;
+}
+
+.state-favorite {
+  background: #f5f3ff;
+}
+
+.big-number {
+  margin-top: 6px;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.duel-card {
+  text-align: center;
+}
+
+.duel-poster {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  background: #e2e8f0;
+  margin-bottom: 14px;
+}
+
+.duel-separator {
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 800;
+  margin: 8px 0;
+}
+
+.ranking-title {
+  margin-top: 4px;
+  font-size: 1.6rem;
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 36px 48px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.rank-number,
+.rank-poster {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  font-weight: 700;
+}
+
+.rank-poster {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  font-size: 1.5rem;
+}
+
+.rank-text {
+  min-width: 0;
+}
+
+@media (max-width: 360px) {
+  .screen {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .movie-grid {
+    gap: 10px;
+  }
+
+  .ranking-row {
+    grid-template-columns: 30px 40px 1fr;
+  }
+
+  .ranking-row .state-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
