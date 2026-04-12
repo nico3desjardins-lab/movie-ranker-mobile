@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 import {
   Film,
   Trophy,
@@ -27,7 +28,7 @@ type Movie = {
   poster: string;
 };
 
-const moviesSeed: Movie[] = [
+const fallbackMovies: Movie[] = [
   { id: 1, title: "Jurassic Park", year: 1993, genre: "Aventure", poster: "🦖" },
   { id: 2, title: "Interstellar", year: 2014, genre: "Science-fiction", poster: "🚀" },
   { id: 3, title: "Home Alone", year: 1990, genre: "Familial", poster: "🏠" },
@@ -105,23 +106,27 @@ function applyElo(
   };
 }
 
-function buildInitialScores(movieStates: Record<number, MovieState>) {
+function buildInitialScores(
+  movies: Movie[],
+  movieStates: Record<number, MovieState>
+) {
   return Object.fromEntries(
-    moviesSeed.map((m) => [m.id, stateMeta[movieStates[m.id]].weight])
+    movies.map((m) => [m.id, stateMeta[movieStates[m.id] ?? "none"].weight])
   ) as Record<number, number>;
 }
 
 function chooseNextPair(
+  movies: Movie[],
   scores: Record<number, number>,
   movieStates: Record<number, MovieState>,
   recentPairs: string[]
 ): [Movie, Movie] | null {
-  const admissible = moviesSeed.filter((m) => movieStates[m.id] !== "unseen");
+  const admissible = movies.filter((m) => (movieStates[m.id] ?? "none") !== "unseen");
 
   if (admissible.length < 2) return null;
 
   const preferred = admissible.filter((m) => {
-    const s = movieStates[m.id];
+    const s = movieStates[m.id] ?? "none";
     return s === "favorite" || s === "liked" || s === "none";
   });
 
@@ -374,18 +379,67 @@ function DuelCard({
 }
 
 export default function Page() {
+  const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
+  const [isLoadingMovies, setIsLoadingMovies] = useState(true);
+  const [moviesSource, setMoviesSource] = useState<"supabase" | "fallback">("fallback");
+
   const [screen, setScreen] = useState<"welcome" | "triage" | "duels" | "ranking">("welcome");
   const [alias, setAlias] = useState("");
   const [movieStates, setMovieStates] = useState<Record<number, MovieState>>(
-    Object.fromEntries(moviesSeed.map((m) => [m.id, "none"])) as Record<number, MovieState>
+    Object.fromEntries(fallbackMovies.map((m) => [m.id, "none"])) as Record<number, MovieState>
   );
   const [scores, setScores] = useState<Record<number, number>>(
-    Object.fromEntries(moviesSeed.map((m) => [m.id, 1000]))
+    Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000]))
   );
   const [currentPair, setCurrentPair] = useState<[Movie, Movie] | null>(null);
   const [recentPairs, setRecentPairs] = useState<string[]>([]);
   const [duelsResolved, setDuelsResolved] = useState(0);
   const [duelsSkipped, setDuelsSkipped] = useState(0);
+
+  useEffect(() => {
+    async function loadMovies() {
+      setIsLoadingMovies(true);
+
+      const { data, error } = await supabase
+        .from("movies")
+        .select("id, title, year, genre, poster")
+        .order("id", { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        const fetchedMovies: Movie[] = data.map((m) => ({
+          id: Number(m.id),
+          title: m.title,
+          year: m.year ?? 0,
+          genre: m.genre ?? "",
+          poster: m.poster ?? "🎬",
+        }));
+
+        setMovies(fetchedMovies);
+        setMoviesSource("supabase");
+
+        const initialStates = Object.fromEntries(
+          fetchedMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
+
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
+      } else {
+        setMovies(fallbackMovies);
+        setMoviesSource("fallback");
+
+        const initialStates = Object.fromEntries(
+          fallbackMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
+
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+      }
+
+      setIsLoadingMovies(false);
+    }
+
+    loadMovies();
+  }, []);
 
   const stats = useMemo(() => {
     const values = Object.values(movieStates);
@@ -398,40 +452,40 @@ export default function Page() {
     };
   }, [movieStates]);
 
-  const progress = Math.round((stats.triaged / moviesSeed.length) * 100);
+  const progress = movies.length ? Math.round((stats.triaged / movies.length) * 100) : 0;
 
   const rankingPreview = useMemo(() => {
-    return [...moviesSeed]
+    return [...movies]
       .sort((a, b) => (scores[b.id] ?? 1000) - (scores[a.id] ?? 1000))
       .slice(0, 10);
-  }, [scores]);
+  }, [movies, scores]);
 
   useEffect(() => {
     if (screen !== "duels") return;
     if (currentPair) return;
-    const nextPair = chooseNextPair(scores, movieStates, recentPairs);
+    const nextPair = chooseNextPair(movies, scores, movieStates, recentPairs);
     setCurrentPair(nextPair);
-  }, [screen, currentPair, scores, movieStates, recentPairs]);
+  }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
 
   const chooseState = (movieId: number) => {
     setMovieStates((prev) => {
-      const updated = { ...prev, [movieId]: nextState(prev[movieId]) };
-      setScores(buildInitialScores(updated));
+      const updated = { ...prev, [movieId]: nextState(prev[movieId] ?? "none") };
+      setScores(buildInitialScores(movies, updated));
       return updated;
     });
   };
 
   const start = () => {
     if (!alias.trim()) return;
-    setScores(buildInitialScores(movieStates));
+    setScores(buildInitialScores(movies, movieStates));
     setScreen("triage");
   };
 
   const openDuels = () => {
-    const initialScores = buildInitialScores(movieStates);
+    const initialScores = buildInitialScores(movies, movieStates);
     setScores(initialScores);
     setRecentPairs([]);
-    setCurrentPair(chooseNextPair(initialScores, movieStates, []));
+    setCurrentPair(chooseNextPair(movies, initialScores, movieStates, []));
     setScreen("duels");
   };
 
@@ -454,17 +508,17 @@ export default function Page() {
     }
 
     setRecentPairs(nextRecentPairs);
-    setCurrentPair(chooseNextPair(nextScores, movieStates, nextRecentPairs));
+    setCurrentPair(chooseNextPair(movies, nextScores, movieStates, nextRecentPairs));
   };
 
   const resetAll = () => {
     const emptyStates = Object.fromEntries(
-      moviesSeed.map((m) => [m.id, "none"])
+      movies.map((m) => [m.id, "none"])
     ) as Record<number, MovieState>;
 
     setAlias("");
     setMovieStates(emptyStates);
-    setScores(Object.fromEntries(moviesSeed.map((m) => [m.id, 1000])));
+    setScores(Object.fromEntries(movies.map((m) => [m.id, 1000])));
     setCurrentPair(null);
     setRecentPairs([]);
     setDuelsResolved(0);
@@ -485,7 +539,14 @@ export default function Page() {
     >
       <div style={{ maxWidth: 460, margin: "0 auto", paddingBottom: 72 }}>
         {screen === "welcome" && (
-          <div style={{ minHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div
+            style={{
+              minHeight: "calc(100vh - 32px)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
             <div style={{ paddingTop: 20 }}>
               <div
                 style={{
@@ -503,12 +564,23 @@ export default function Page() {
                 <Film size={28} />
               </div>
 
-              <div style={{ fontSize: 46, fontWeight: 900, lineHeight: 1.02, letterSpacing: "-0.03em" }}>
+              <div
+                style={{
+                  fontSize: 46,
+                  fontWeight: 900,
+                  lineHeight: 1.02,
+                  letterSpacing: "-0.03em",
+                }}
+              >
                 Classement familial de films
               </div>
 
               <div style={{ marginTop: 14, fontSize: 16, lineHeight: 1.55, color: "#475569" }}>
                 Faites émerger votre top personnel à partir d’un tri rapide, puis de duels entre films proches.
+              </div>
+
+              <div style={{ marginTop: 16, fontSize: 13, color: "#64748b" }}>
+                Source des films : {isLoadingMovies ? "chargement..." : moviesSource}
               </div>
             </div>
 
@@ -535,7 +607,14 @@ export default function Page() {
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                    marginBottom: 16,
+                  }}
+                >
                   <div style={{ borderRadius: 18, background: "#f8fafc", padding: 14 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Phase 1</div>
                     <div style={{ fontSize: 13, color: "#64748b" }}>Tri rapide des films</div>
@@ -548,12 +627,13 @@ export default function Page() {
 
                 <button
                   onClick={start}
+                  disabled={isLoadingMovies || movies.length === 0}
                   style={{
                     width: "100%",
                     height: 48,
                     borderRadius: 18,
                     border: "none",
-                    background: "#4f46e5",
+                    background: isLoadingMovies ? "#94a3b8" : "#4f46e5",
                     color: "#ffffff",
                     fontWeight: 800,
                     fontSize: 16,
@@ -561,7 +641,7 @@ export default function Page() {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    cursor: "pointer",
+                    cursor: isLoadingMovies ? "not-allowed" : "pointer",
                   }}
                 >
                   Commencer <ChevronRight size={18} />
@@ -585,7 +665,15 @@ export default function Page() {
                 borderBottom: "1px solid #e2e8f0",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 10,
+                }}
+              >
                 <div>
                   <div style={{ fontSize: 14, color: "#64748b" }}>Connecté comme</div>
                   <div style={{ fontWeight: 800 }}>{alias}</div>
@@ -612,7 +700,7 @@ export default function Page() {
               </div>
 
               <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>
-                {stats.triaged} films triés sur {moviesSeed.length}
+                {stats.triaged} films triés sur {movies.length}
               </div>
             </div>
 
@@ -632,17 +720,24 @@ export default function Page() {
             </ScreenCard>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {moviesSeed.map((movie) => (
+              {movies.map((movie) => (
                 <MovieTile
                   key={movie.id}
                   movie={movie}
-                  state={movieStates[movie.id]}
+                  state={movieStates[movie.id] ?? "none"}
                   onTap={() => chooseState(movie.id)}
                 />
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
               <MetricBox label="Coup de cœur" value={stats.favorite} />
               <MetricBox label="Pas vus" value={stats.unseen} />
             </div>
@@ -681,7 +776,15 @@ export default function Page() {
                 borderBottom: "1px solid #e2e8f0",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 10,
+                }}
+              >
                 <div>
                   <div style={{ fontSize: 14, color: "#64748b" }}>Phase 2</div>
                   <div style={{ fontSize: 20, fontWeight: 900 }}>Duels de départage</div>
@@ -699,14 +802,28 @@ export default function Page() {
             {duelFinished ? (
               <ScreenCard>
                 <div style={{ padding: 22, textAlign: "center" }}>
-                  <div style={{ color: "#10b981", marginBottom: 12, display: "flex", justifyContent: "center" }}>
+                  <div
+                    style={{
+                      color: "#10b981",
+                      marginBottom: 12,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
                     <CheckCircle2 size={52} />
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>
                     Aucun autre duel prioritaire
                   </div>
-                  <div style={{ fontSize: 14, lineHeight: 1.6, color: "#64748b", marginBottom: 18 }}>
-                    Vous avez épuisé les duels utiles pour ce petit corpus. Vous pouvez voir votre classement, revenir au tri initial ou relancer un autre cycle.
+                  <div
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      color: "#64748b",
+                      marginBottom: 18,
+                    }}
+                  >
+                    Vous avez épuisé les duels utiles pour ce corpus. Vous pouvez voir votre classement, revenir au tri initial ou relancer un autre cycle.
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
@@ -746,7 +863,14 @@ export default function Page() {
               </ScreenCard>
             ) : currentPair ? (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "stretch" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                    alignItems: "stretch",
+                  }}
+                >
                   <DuelCard movie={currentPair[0]} onChoose={() => resolveDuel(currentPair[0].id)} />
                   <DuelCard movie={currentPair[1]} onChoose={() => resolveDuel(currentPair[1].id)} />
                 </div>
@@ -793,7 +917,15 @@ export default function Page() {
 
         {screen === "ranking" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
               <div>
                 <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
                 <div style={{ fontSize: 24, fontWeight: 900 }}>Top provisoire de {alias}</div>
@@ -816,7 +948,16 @@ export default function Page() {
 
             <ScreenCard>
               <div style={{ padding: 18 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 800, marginBottom: 14 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 18,
+                    fontWeight: 800,
+                    marginBottom: 14,
+                  }}
+                >
                   <Users size={18} />
                   Aperçu du classement
                 </div>
@@ -896,7 +1037,7 @@ export default function Page() {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {stateMeta[movieStates[movie.id]].label}
+                        {stateMeta[movieStates[movie.id] ?? "none"].label}
                       </div>
                     </div>
                   ))}
@@ -904,7 +1045,14 @@ export default function Page() {
               </div>
             </ScreenCard>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
               <button
                 onClick={openDuels}
                 style={{
