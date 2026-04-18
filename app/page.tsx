@@ -455,6 +455,30 @@ async function saveMovieState(
   }
 }
 
+function PlayerBadge({ alias }: { alias: string }) {
+  if (!alias.trim()) return null;
+
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 14px",
+        borderRadius: 999,
+        background: "#eef2ff",
+        color: "#312e81",
+        border: "1px solid #c7d2fe",
+        fontSize: 13,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+      }}
+    >
+      Profil : {alias}
+    </div>
+  );
+}
+
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
@@ -813,11 +837,10 @@ const start = async () => {
                   marginBottom: 10,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 14, color: "#64748b" }}>Connecté comme</div>
-                  <div style={{ fontWeight: 800 }}>{alias}</div>
-                </div>
-                <BadgePill dark>Phase 1</BadgePill>
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <PlayerBadge alias={alias} />
+</div>
+<BadgePill dark>Phase 1</BadgePill>
               </div>
 
               <div
@@ -924,10 +947,13 @@ const start = async () => {
                   marginBottom: 10,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 14, color: "#64748b" }}>Phase 2</div>
-                  <div style={{ fontSize: 20, fontWeight: 900 }}>Duels de départage</div>
-                </div>
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <PlayerBadge alias={alias} />
+  <div>
+    <div style={{ fontSize: 14, color: "#64748b" }}>Phase 2</div>
+    <div style={{ fontSize: 20, fontWeight: 900 }}>Duels de départage</div>
+  </div>
+</div>
                 <BadgePill dark>{duelsResolved} tranchés</BadgePill>
               </div>
 
@@ -1067,6 +1093,9 @@ const start = async () => {
             >
               <div>
                 <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
+                <div style={{ marginTop: 8 }}>
+  <PlayerBadge alias={alias} />
+</div>
                 <div style={{ fontSize: 24, fontWeight: 900 }}>Top provisoire de {alias}</div>
               </div>
               <div
