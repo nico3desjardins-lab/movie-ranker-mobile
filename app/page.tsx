@@ -1162,51 +1162,98 @@ const start = async () => {
                 </div>
 
                 <div style={{ display: "grid", gap: 12 }}>
-                  {rankingPreview.map((movie, index) => (
-                    <div
-                      key={movie.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        borderRadius: 20,
-                        background: "#f8fafc",
-                        padding: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 999,
-                          background: "#ffffff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 800,
-                          boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {index + 1}
-                      </div>
+{rankingPreview.map((movie, index) => (
+  <div
+    key={movie.id}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      borderRadius: 20,
+      background: "#f8fafc",
+      padding: 12,
+    }}
+  >
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 999,
+        background: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 800,
+        boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+        flexShrink: 0,
+      }}
+    >
+      {index + 1}
+    </div>
 
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 18,
-                          background: "#ffffff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 26,
-                          boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {movie.poster}
-                      </div>
+    <div
+      style={{
+        width: 48,
+        height: 48,
+        borderRadius: 18,
+        background: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 26,
+        boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+        flexShrink: 0,
+        overflow: "hidden",
+      }}
+    >
+      {movie.posterUrl ? (
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      ) : (
+        movie.poster
+      )}
+    </div>
+
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: "#0f172a",
+          lineHeight: 1.2,
+          marginBottom: 4,
+        }}
+      >
+        {movie.title}
+      </div>
+      <div style={{ fontSize: 14, color: "#64748b" }}>
+        {movie.year} · {movie.genre}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: 999,
+        background: "#ffffff",
+        border: "1px solid #dbeafe",
+        fontSize: 12,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {stateMeta[movieStates[movie.id] ?? "none"].label}
+    </div>
+  </div>
+))}
 
 <div
   style={{
