@@ -1111,269 +1111,221 @@ const start = async () => {
           </div>
         )}
 
-        {screen === "ranking" && (
-          <div>
+{screen === "ranking" && (
+  <div>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 14,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
+        <div style={{ marginTop: 8 }}>
+          <PlayerBadge alias={alias} />
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 8 }}>
+          Top provisoire de {alias}
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 24,
+          background: "#e0e7ff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#d97706",
+        }}
+      >
+        <Trophy size={34} />
+      </div>
+    </div>
+
+    <ScreenCard>
+      <div style={{ padding: 18 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 18,
+            fontWeight: 800,
+            marginBottom: 14,
+          }}
+        >
+          <Users size={18} />
+          Aperçu du classement
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {rankingPreview.map((movie, index) => (
             <div
+              key={movie.id}
               style={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
                 gap: 12,
-                marginBottom: 14,
+                borderRadius: 20,
+                background: "#f8fafc",
+                padding: 12,
               }}
             >
-              <div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
-                <div style={{ marginTop: 8 }}>
-  <PlayerBadge alias={alias} />
-</div>
-                <div style={{ fontSize: 24, fontWeight: 900 }}>Top provisoire de {alias}</div>
-              </div>
               <div
                 style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 24,
-                  background: "#e0e7ff",
+                  width: 40,
+                  height: 40,
+                  borderRadius: 999,
+                  background: "#ffffff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#d97706",
+                  fontWeight: 800,
+                  boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+                  flexShrink: 0,
                 }}
               >
-                <Trophy size={34} />
+                {index + 1}
               </div>
-            </div>
 
-            <ScreenCard>
-              <div style={{ padding: 18 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 18,
+                  background: "#ffffff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
+                  boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+                  flexShrink: 0,
+                  overflow: "hidden",
+                }}
+              >
+                {movie.posterUrl ? (
+                  <img
+                    src={movie.posterUrl}
+                    alt={movie.title}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  movie.poster
+                )}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 18,
-                    fontWeight: 800,
-                    marginBottom: 14,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    lineHeight: 1.2,
+                    marginBottom: 4,
                   }}
                 >
-                  <Users size={18} />
-                  Aperçu du classement
+                  {movie.title}
                 </div>
-
-                <div style={{ display: "grid", gap: 12 }}>
-{rankingPreview.map((movie, index) => (
-  <div
-    key={movie.id}
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      borderRadius: 20,
-      background: "#f8fafc",
-      padding: 12,
-    }}
-  >
-    <div
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 999,
-        background: "#ffffff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 800,
-        boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-        flexShrink: 0,
-      }}
-    >
-      {index + 1}
-    </div>
-
-    <div
-      style={{
-        width: 48,
-        height: 48,
-        borderRadius: 18,
-        background: "#ffffff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 26,
-        boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-        flexShrink: 0,
-        overflow: "hidden",
-      }}
-    >
-      {movie.posterUrl ? (
-        <img
-          src={movie.posterUrl}
-          alt={movie.title}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-          }}
-        />
-      ) : (
-        movie.poster
-      )}
-    </div>
-
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          fontSize: 15,
-          fontWeight: 700,
-          color: "#0f172a",
-          lineHeight: 1.2,
-          marginBottom: 4,
-        }}
-      >
-        {movie.title}
-      </div>
-      <div style={{ fontSize: 14, color: "#64748b" }}>
-        {movie.year} · {movie.genre}
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "8px 12px",
-        borderRadius: 999,
-        background: "#ffffff",
-        border: "1px solid #dbeafe",
-        fontSize: 12,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {stateMeta[movieStates[movie.id] ?? "none"].label}
-    </div>
-  </div>
-))}
-
-<div
-  style={{
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    background: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 26,
-    boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-    flexShrink: 0,
-    overflow: "hidden",
-  }}
->
-  {movie.posterUrl ? (
-    <img
-      src={movie.posterUrl}
-      alt={movie.title}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        display: "block",
-      }}
-    />
-  ) : (
-    movie.poster
-  )}
-</div>
-                        <div style={{ fontSize: 14, color: "#64748b" }}>
-                          {movie.year} · {movie.genre}
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: 999,
-                          background: "#ffffff",
-                          border: "1px solid #dbeafe",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {stateMeta[movieStates[movie.id] ?? "none"].label}
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ fontSize: 14, color: "#64748b" }}>
+                  {movie.year} · {movie.genre}
                 </div>
               </div>
-            </ScreenCard>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
-              <button
-                onClick={openDuels}
+              <div
                 style={{
-                  height: 48,
-                  borderRadius: 18,
-                  border: "none",
-                  background: "#4f46e5",
-                  color: "#ffffff",
-                  fontWeight: 800,
-                  fontSize: 15,
-                  cursor: "pointer",
-                }}
-              >
-                Continuer
-              </button>
-
-              <button
-                onClick={() => setScreen("triage")}
-                style={{
-                  height: 48,
-                  borderRadius: 18,
-                  border: "1px solid #cbd5e1",
+                  padding: "8px 12px",
+                  borderRadius: 999,
                   background: "#ffffff",
-                  color: "#0f172a",
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: "pointer",
+                  border: "1px solid #dbeafe",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
                 }}
               >
-                Ajuster le tri
-              </button>
+                {stateMeta[movieStates[movie.id] ?? "none"].label}
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
+    </ScreenCard>
 
-            <button
-              onClick={resetAll}
-              style={{
-                marginTop: 14,
-                width: "100%",
-                height: 48,
-                borderRadius: 18,
-                border: "none",
-                background: "transparent",
-                color: "#0f172a",
-                fontWeight: 700,
-                fontSize: 15,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                cursor: "pointer",
-              }}
-            >
-              <RefreshCw size={16} />
-              Recommencer du début
-            </button>
-          </div>
-        )}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 12,
+        marginTop: 16,
+      }}
+    >
+      <button
+        onClick={openDuels}
+        style={{
+          height: 48,
+          borderRadius: 18,
+          border: "none",
+          background: "#4f46e5",
+          color: "#ffffff",
+          fontWeight: 800,
+          fontSize: 15,
+          cursor: "pointer",
+        }}
+      >
+        Continuer
+      </button>
+
+      <button
+        onClick={() => setScreen("triage")}
+        style={{
+          height: 48,
+          borderRadius: 18,
+          border: "1px solid #cbd5e1",
+          background: "#ffffff",
+          color: "#0f172a",
+          fontWeight: 700,
+          fontSize: 15,
+          cursor: "pointer",
+        }}
+      >
+        Ajuster le tri
+      </button>
+    </div>
+
+    <button
+      onClick={resetAll}
+      style={{
+        marginTop: 14,
+        width: "100%",
+        height: 48,
+        borderRadius: 18,
+        border: "none",
+        background: "transparent",
+        color: "#0f172a",
+        fontWeight: 700,
+        fontSize: 15,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        cursor: "pointer",
+      }}
+    >
+      <RefreshCw size={16} />
+      Recommencer du début
+    </button>
+  </div>
+)}
       </div>
     </div>
   );
