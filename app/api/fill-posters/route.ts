@@ -10,6 +10,7 @@ type DbMovie = {
   year: number | null;
   poster_url: string | null;
   tmdb_id?: number | null;
+  poster_status?: string | null;
 };
 
 type TmdbMovie = {
@@ -163,8 +164,9 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("movies_catalog")
-      .select("id, title, title_fr, year, poster_url, tmdb_id")
+      .select("id, title, title_fr, year, poster_url, tmdb_id, poster_status")
       .or("poster_url.is.null,poster_url.eq.")
+      .eq("poster_status", "pending")
       .order("id", { ascending: true })
       .limit(limit);
 
@@ -211,6 +213,15 @@ export async function GET(request: NextRequest) {
         const bestMatch = chooseBestMatch(searchResults, movie);
 
         if (!bestMatch || !bestMatch.poster_path) {
+          if (!dryRun) {
+            await supabase
+              .from("movies_catalog")
+              .update({
+                poster_status: "not_found",
+              })
+              .eq("id", movie.id);
+          }
+
           results.push({
             id: movie.id,
             title: titleToSearch,
@@ -239,6 +250,7 @@ export async function GET(request: NextRequest) {
           .update({
             poster_url: posterUrl,
             tmdb_id: bestMatch.id,
+            poster_status: "found",
           })
           .eq("id", movie.id);
 
