@@ -518,10 +518,11 @@ async function loadMovies() {
     return;
   }
 
-  const { data, error } = await supabase
-    .from("movies")
-    .select("id, title, year, genre, poster")
-    .order("id", { ascending: true });
+const { data, error } = await supabase
+  .from("movies_catalog")
+  .select("id, title, year, genre, poster_emoji, poster_url, title_fr")
+  .eq("is_active", true)
+  .order("id", { ascending: true });
 
   if (error) {
     setDiagnostic(`erreur supabase: ${error.message}`);
@@ -540,13 +541,13 @@ async function loadMovies() {
 
   if (data && data.length > 0) {
     setDiagnostic(`supabase ok: ${data.length} films`);
-    const fetchedMovies: Movie[] = data.map((m) => ({
-      id: Number(m.id),
-      title: m.title,
-      year: m.year ?? 0,
-      genre: m.genre ?? "",
-      poster: m.poster ?? "🎬",
-    }));
+const fetchedMovies: Movie[] = data.map((m) => ({
+  id: Number(m.id),
+  title: m.title_fr || m.title,
+  year: m.year ?? 0,
+  genre: m.genre ?? "",
+  poster: m.poster_emoji || "🎬",
+}));
 
     setMovies(fetchedMovies);
     setMoviesSource("supabase");
