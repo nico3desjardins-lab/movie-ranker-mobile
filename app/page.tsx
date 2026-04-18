@@ -395,12 +395,14 @@ export default function Page() {
   const [recentPairs, setRecentPairs] = useState<string[]>([]);
   const [duelsResolved, setDuelsResolved] = useState(0);
   const [duelsSkipped, setDuelsSkipped] = useState(0);
+  const [diagnostic, setDiagnostic] = useState("");
 
   useEffect(() => {
 async function loadMovies() {
   setIsLoadingMovies(true);
 
   if (!supabase) {
+    setDiagnostic("supabase client absent");
     setMovies(fallbackMovies);
     setMoviesSource("fallback");
 
@@ -419,7 +421,23 @@ async function loadMovies() {
     .select("id, title, year, genre, poster")
     .order("id", { ascending: true });
 
-  if (!error && data && data.length > 0) {
+  if (error) {
+    setDiagnostic(`erreur supabase: ${error.message}`);
+    setMovies(fallbackMovies);
+    setMoviesSource("fallback");
+
+    const initialStates = Object.fromEntries(
+      fallbackMovies.map((m) => [m.id, "none"])
+    ) as Record<number, MovieState>;
+
+    setMovieStates(initialStates);
+    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+    setIsLoadingMovies(false);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    setDiagnostic(`supabase ok: ${data.length} films`);
     const fetchedMovies: Movie[] = data.map((m) => ({
       id: Number(m.id),
       title: m.title,
@@ -438,6 +456,7 @@ async function loadMovies() {
     setMovieStates(initialStates);
     setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
   } else {
+    setDiagnostic("requête ok, mais aucun film retourné");
     setMovies(fallbackMovies);
     setMoviesSource("fallback");
 
@@ -595,6 +614,9 @@ async function loadMovies() {
 
               <div style={{ marginTop: 16, fontSize: 13, color: "#64748b" }}>
                 Source des films : {isLoadingMovies ? "chargement..." : moviesSource}
+                <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+  Diagnostic : {diagnostic || "aucun"}
+</div>
               </div>
             </div>
 
