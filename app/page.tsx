@@ -26,6 +26,7 @@ type Movie = {
   year: number;
   genre: string;
   poster: string;
+  posterUrl?: string | null;
 };
 
 const fallbackMovies: Movie[] = [
@@ -547,6 +548,7 @@ const fetchedMovies: Movie[] = data.map((m) => ({
   year: m.year ?? 0,
   genre: m.genre ?? "",
   poster: m.poster_emoji || "🎬",
+  posterUrl: m.poster_url ?? null,
 }));
 
     setMovies(fetchedMovies);
