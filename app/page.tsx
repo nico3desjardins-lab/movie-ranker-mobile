@@ -397,46 +397,60 @@ export default function Page() {
   const [duelsSkipped, setDuelsSkipped] = useState(0);
 
   useEffect(() => {
-    async function loadMovies() {
-      setIsLoadingMovies(true);
+async function loadMovies() {
+  setIsLoadingMovies(true);
 
-      const { data, error } = await supabase
-        .from("movies")
-        .select("id, title, year, genre, poster")
-        .order("id", { ascending: true });
+  if (!supabase) {
+    setMovies(fallbackMovies);
+    setMoviesSource("fallback");
 
-      if (!error && data && data.length > 0) {
-        const fetchedMovies: Movie[] = data.map((m) => ({
-          id: Number(m.id),
-          title: m.title,
-          year: m.year ?? 0,
-          genre: m.genre ?? "",
-          poster: m.poster ?? "🎬",
-        }));
+    const initialStates = Object.fromEntries(
+      fallbackMovies.map((m) => [m.id, "none"])
+    ) as Record<number, MovieState>;
 
-        setMovies(fetchedMovies);
-        setMoviesSource("supabase");
+    setMovieStates(initialStates);
+    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+    setIsLoadingMovies(false);
+    return;
+  }
 
-        const initialStates = Object.fromEntries(
-          fetchedMovies.map((m) => [m.id, "none"])
-        ) as Record<number, MovieState>;
+  const { data, error } = await supabase
+    .from("movies")
+    .select("id, title, year, genre, poster")
+    .order("id", { ascending: true });
 
-        setMovieStates(initialStates);
-        setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
-      } else {
-        setMovies(fallbackMovies);
-        setMoviesSource("fallback");
+  if (!error && data && data.length > 0) {
+    const fetchedMovies: Movie[] = data.map((m) => ({
+      id: Number(m.id),
+      title: m.title,
+      year: m.year ?? 0,
+      genre: m.genre ?? "",
+      poster: m.poster ?? "🎬",
+    }));
 
-        const initialStates = Object.fromEntries(
-          fallbackMovies.map((m) => [m.id, "none"])
-        ) as Record<number, MovieState>;
+    setMovies(fetchedMovies);
+    setMoviesSource("supabase");
 
-        setMovieStates(initialStates);
-        setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
-      }
+    const initialStates = Object.fromEntries(
+      fetchedMovies.map((m) => [m.id, "none"])
+    ) as Record<number, MovieState>;
 
-      setIsLoadingMovies(false);
-    }
+    setMovieStates(initialStates);
+    setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
+  } else {
+    setMovies(fallbackMovies);
+    setMoviesSource("fallback");
+
+    const initialStates = Object.fromEntries(
+      fallbackMovies.map((m) => [m.id, "none"])
+    ) as Record<number, MovieState>;
+
+    setMovieStates(initialStates);
+    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+  }
+
+  setIsLoadingMovies(false);
+}
 
     loadMovies();
   }, []);
