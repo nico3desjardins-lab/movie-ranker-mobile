@@ -378,6 +378,83 @@ function DuelCard({
   );
 }
 
+async function getOrCreateProfile(displayName: string) {
+  if (!supabase) return null;
+
+  const { data: existing, error: existingError } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .eq("display_name", displayName)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("Erreur lecture profile:", existingError.message);
+    return null;
+  }
+
+  if (existing) return existing.id as string;
+
+  const { data: created, error: createError } = await supabase
+    .from("profiles")
+    .insert({ display_name: displayName })
+    .select("id")
+    .single();
+
+  if (createError) {
+    console.error("Erreur création profile:", createError.message);
+    return null;
+  }
+
+  return created.id as string;
+}
+
+async function loadSavedStates(profileId: string) {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("movie_states")
+    .select("movie_id, state")
+    .eq("profile_id", profileId);
+
+  if (error) {
+    console.error("Erreur chargement états:", error.message);
+    return null;
+  }
+
+  if (!data || !data.length) return {};
+
+  const mapped = Object.fromEntries(
+    data.map((row) => [Number(row.movie_id), row.state as MovieState])
+  ) as Record<number, MovieState>;
+
+  return mapped;
+}
+
+async function saveMovieState(
+  profileId: string,
+  movieId: number,
+  state: MovieState
+) {
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("movie_states")
+    .upsert(
+      {
+        profile_id: profileId,
+        movie_id: movieId,
+        state,
+      },
+      {
+        onConflict: "profile_id,movie_id",
+      }
+    );
+
+  if (error) {
+    console.error("Erreur sauvegarde état:", error.message);
+  }
+}
+
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
@@ -396,6 +473,7 @@ export default function Page() {
   const [duelsResolved, setDuelsResolved] = useState(0);
   const [duelsSkipped, setDuelsSkipped] = useState(0);
   const [diagnostic, setDiagnostic] = useState("");
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   useEffect(() => {
 async function loadMovies() {
@@ -500,19 +578,44 @@ async function loadMovies() {
     setCurrentPair(nextPair);
   }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
 
-  const chooseState = (movieId: number) => {
-    setMovieStates((prev) => {
-      const updated = { ...prev, [movieId]: nextState(prev[movieId] ?? "none") };
-      setScores(buildInitialScores(movies, updated));
-      return updated;
-    });
-  };
+const chooseState = async (movieId: number) => {
+  const next = nextState(movieStates[movieId] ?? "none");
 
-  const start = () => {
-    if (!alias.trim()) return;
+  const updated = { ...movieStates, [movieId]: next };
+  setMovieStates(updated);
+  setScores(buildInitialScores(movies, updated));
+
+  if (profileId) {
+    await saveMovieState(profileId, movieId, next);
+  }
+};
+
+const start = async () => {
+  const cleanAlias = alias.trim();
+  if (!cleanAlias) return;
+
+  const id = await getOrCreateProfile(cleanAlias);
+  setProfileId(id);
+
+  if (id) {
+    const savedStates = await loadSavedStates(id);
+
+    if (savedStates && Object.keys(savedStates).length > 0) {
+      const mergedStates = Object.fromEntries(
+        movies.map((m) => [m.id, savedStates[m.id] ?? "none"])
+      ) as Record<number, MovieState>;
+
+      setMovieStates(mergedStates);
+      setScores(buildInitialScores(movies, mergedStates));
+    } else {
+      setScores(buildInitialScores(movies, movieStates));
+    }
+  } else {
     setScores(buildInitialScores(movies, movieStates));
-    setScreen("triage");
-  };
+  }
+
+  setScreen("triage");
+};
 
   const openDuels = () => {
     const initialScores = buildInitialScores(movies, movieStates);
