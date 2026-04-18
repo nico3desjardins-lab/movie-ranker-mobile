@@ -266,19 +266,33 @@ function MovieTile({
       }}
     >
       <div
-        style={{
-          aspectRatio: "3 / 4",
-          borderRadius: 18,
-          background: "#e2e8f0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 46,
-          marginBottom: 12,
-        }}
-      >
-        {movie.poster}
-      </div>
+  style={{
+    aspectRatio: "3 / 4",
+    borderRadius: 18,
+    background: "#e2e8f0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 46,
+    marginBottom: 12,
+    overflow: "hidden",
+  }}
+>
+  {movie.posterUrl ? (
+    <img
+      src={movie.posterUrl}
+      alt={movie.title}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      }}
+    />
+  ) : (
+    movie.poster
+  )}
+</div>
 
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
         {movie.title}
@@ -326,19 +340,33 @@ function DuelCard({
     <ScreenCard style={{ height: "100%" }}>
       <div style={{ padding: 12, display: "flex", flexDirection: "column", height: "100%" }}>
         <div
-          style={{
-            aspectRatio: "3 / 4",
-            borderRadius: 24,
-            background: "#e2e8f0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 72,
-            marginBottom: 14,
-          }}
-        >
-          {movie.poster}
-        </div>
+  style={{
+    aspectRatio: "3 / 4",
+    borderRadius: 24,
+    background: "#e2e8f0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 72,
+    marginBottom: 14,
+    overflow: "hidden",
+  }}
+>
+  {movie.posterUrl ? (
+    <img
+      src={movie.posterUrl}
+      alt={movie.title}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      }}
+    />
+  ) : (
+    movie.poster
+  )}
+</div>
 
         <div style={{ minHeight: 86 }}>
           <div
@@ -1180,18 +1208,36 @@ const start = async () => {
                         {movie.poster}
                       </div>
 
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            fontWeight: 800,
-                            color: "#0f172a",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {movie.title}
-                        </div>
+<div
+  style={{
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    background: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 26,
+    boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+    flexShrink: 0,
+    overflow: "hidden",
+  }}
+>
+  {movie.posterUrl ? (
+    <img
+      src={movie.posterUrl}
+      alt={movie.title}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      }}
+    />
+  ) : (
+    movie.poster
+  )}
+</div>
                         <div style={{ fontSize: 14, color: "#64748b" }}>
                           {movie.year} · {movie.genre}
                         </div>
