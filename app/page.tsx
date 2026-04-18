@@ -365,13 +365,40 @@ function MovieTile({
 function DuelCard({
   movie,
   onChoose,
+  swipeDirection,
 }: {
   movie: Movie;
   onChoose: () => void;
+  swipeDirection: "left" | "right";
 }) {
   return (
     <ScreenCard style={{ height: "100%" }}>
-      <div style={{ padding: 12, display: "flex", flexDirection: "column", height: "100%" }}>
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        onDragEnd={(_, info) => {
+          const offsetX = info.offset.x;
+          const threshold = 90;
+
+          if (swipeDirection === "right" && offsetX > threshold) {
+            onChoose();
+          }
+
+          if (swipeDirection === "left" && offsetX < -threshold) {
+            onChoose();
+          }
+        }}
+        style={{
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          touchAction: "pan-y",
+          cursor: "grab",
+        }}
+        whileTap={{ cursor: "grabbing", scale: 0.99 }}
+      >
         <PosterBox movie={movie} size="duel" />
 
         <div style={{ minHeight: 86 }}>
@@ -391,6 +418,21 @@ function DuelCard({
           </div>
         </div>
 
+        <div
+          style={{
+            marginTop: 10,
+            marginBottom: 12,
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#64748b",
+            textAlign: "center",
+          }}
+        >
+          {swipeDirection === "right"
+            ? "Glissez à droite pour choisir"
+            : "Glissez à gauche pour choisir"}
+        </div>
+
         <button
           onClick={onChoose}
           style={{
@@ -408,11 +450,10 @@ function DuelCard({
         >
           Je choisis ce film
         </button>
-      </div>
+      </motion.div>
     </ScreenCard>
   );
 }
-
 async function getOrCreateProfile(displayName: string) {
   if (!supabase) return null;
 
@@ -1142,8 +1183,16 @@ const goToNextTriageBatch = () => {
                     alignItems: "stretch",
                   }}
                 >
-                  <DuelCard movie={currentPair[0]} onChoose={() => resolveDuel(currentPair[0].id)} />
-                  <DuelCard movie={currentPair[1]} onChoose={() => resolveDuel(currentPair[1].id)} />
+<DuelCard
+  movie={currentPair[0]}
+  swipeDirection="right"
+  onChoose={() => resolveDuel(currentPair[0].id)}
+/>
+<DuelCard
+  movie={currentPair[1]}
+  swipeDirection="left"
+  onChoose={() => resolveDuel(currentPair[1].id)}
+/>
                 </div>
 
                 <button
