@@ -240,6 +240,66 @@ function MetricBox({
   );
 }
 
+function PosterBox({
+  movie,
+  size = "tile",
+}: {
+  movie: Movie;
+  size?: "tile" | "duel" | "mini";
+}) {
+  const styles: React.CSSProperties =
+    size === "duel"
+      ? {
+          aspectRatio: "3 / 4",
+          borderRadius: 24,
+          fontSize: 72,
+          marginBottom: 14,
+        }
+      : size === "mini"
+      ? {
+          width: 48,
+          height: 48,
+          borderRadius: 18,
+          fontSize: 26,
+        }
+      : {
+          aspectRatio: "3 / 4",
+          borderRadius: 18,
+          fontSize: 46,
+          marginBottom: 12,
+        };
+
+  return (
+    <div
+      style={{
+        background: "#e2e8f0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        flexShrink: 0,
+        boxShadow: size === "mini" ? "0 4px 10px rgba(15, 23, 42, 0.05)" : undefined,
+        ...styles,
+      }}
+    >
+      {movie.posterUrl ? (
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      ) : (
+        movie.poster
+      )}
+    </div>
+  );
+}
+
 function MovieTile({
   movie,
   state,
@@ -265,34 +325,7 @@ function MovieTile({
         boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
       }}
     >
-      <div
-  style={{
-    aspectRatio: "3 / 4",
-    borderRadius: 18,
-    background: "#e2e8f0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 46,
-    marginBottom: 12,
-    overflow: "hidden",
-  }}
->
-  {movie.posterUrl ? (
-    <img
-      src={movie.posterUrl}
-      alt={movie.title}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        display: "block",
-      }}
-    />
-  ) : (
-    movie.poster
-  )}
-</div>
+      <PosterBox movie={movie} size="tile" />
 
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
         {movie.title}
@@ -339,34 +372,7 @@ function DuelCard({
   return (
     <ScreenCard style={{ height: "100%" }}>
       <div style={{ padding: 12, display: "flex", flexDirection: "column", height: "100%" }}>
-        <div
-  style={{
-    aspectRatio: "3 / 4",
-    borderRadius: 24,
-    background: "#e2e8f0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 72,
-    marginBottom: 14,
-    overflow: "hidden",
-  }}
->
-  {movie.posterUrl ? (
-    <img
-      src={movie.posterUrl}
-      alt={movie.title}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        display: "block",
-      }}
-    />
-  ) : (
-    movie.poster
-  )}
-</div>
+        <PosterBox movie={movie} size="duel" />
 
         <div style={{ minHeight: 86 }}>
           <div
@@ -529,80 +535,81 @@ export default function Page() {
   const [profileId, setProfileId] = useState<string | null>(null);
 
   useEffect(() => {
-async function loadMovies() {
-  setIsLoadingMovies(true);
+    async function loadMovies() {
+      setIsLoadingMovies(true);
 
-  if (!supabase) {
-    setDiagnostic("supabase client absent");
-    setMovies(fallbackMovies);
-    setMoviesSource("fallback");
+      if (!supabase) {
+        setDiagnostic("supabase client absent");
+        setMovies(fallbackMovies);
+        setMoviesSource("fallback");
 
-    const initialStates = Object.fromEntries(
-      fallbackMovies.map((m) => [m.id, "none"])
-    ) as Record<number, MovieState>;
+        const initialStates = Object.fromEntries(
+          fallbackMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
 
-    setMovieStates(initialStates);
-    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
-    setIsLoadingMovies(false);
-    return;
-  }
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+        setIsLoadingMovies(false);
+        return;
+      }
 
-const { data, error } = await supabase
-  .from("movies_catalog")
-  .select("id, title, year, genre, poster_emoji, poster_url, title_fr")
-  .eq("is_active", true)
-  .order("id", { ascending: true });
+      const { data, error } = await supabase
+        .from("movies_catalog")
+        .select("id, title, year, genre, poster_emoji, poster_url, title_fr")
+        .eq("is_active", true)
+        .order("id", { ascending: true });
 
-  if (error) {
-    setDiagnostic(`erreur supabase: ${error.message}`);
-    setMovies(fallbackMovies);
-    setMoviesSource("fallback");
+      if (error) {
+        setDiagnostic(`erreur supabase: ${error.message}`);
+        setMovies(fallbackMovies);
+        setMoviesSource("fallback");
 
-    const initialStates = Object.fromEntries(
-      fallbackMovies.map((m) => [m.id, "none"])
-    ) as Record<number, MovieState>;
+        const initialStates = Object.fromEntries(
+          fallbackMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
 
-    setMovieStates(initialStates);
-    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
-    setIsLoadingMovies(false);
-    return;
-  }
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+        setIsLoadingMovies(false);
+        return;
+      }
 
-  if (data && data.length > 0) {
-    setDiagnostic(`supabase ok: ${data.length} films`);
-const fetchedMovies: Movie[] = data.map((m) => ({
-  id: Number(m.id),
-  title: m.title_fr || m.title,
-  year: m.year ?? 0,
-  genre: m.genre ?? "",
-  poster: m.poster_emoji || "🎬",
-  posterUrl: m.poster_url ?? null,
-}));
+      if (data && data.length > 0) {
+        setDiagnostic(`supabase ok: ${data.length} films`);
 
-    setMovies(fetchedMovies);
-    setMoviesSource("supabase");
+        const fetchedMovies: Movie[] = data.map((m) => ({
+          id: Number(m.id),
+          title: m.title_fr || m.title,
+          year: m.year ?? 0,
+          genre: m.genre ?? "",
+          poster: m.poster_emoji || "🎬",
+          posterUrl: m.poster_url ?? null,
+        }));
 
-    const initialStates = Object.fromEntries(
-      fetchedMovies.map((m) => [m.id, "none"])
-    ) as Record<number, MovieState>;
+        setMovies(fetchedMovies);
+        setMoviesSource("supabase");
 
-    setMovieStates(initialStates);
-    setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
-  } else {
-    setDiagnostic("requête ok, mais aucun film retourné");
-    setMovies(fallbackMovies);
-    setMoviesSource("fallback");
+        const initialStates = Object.fromEntries(
+          fetchedMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
 
-    const initialStates = Object.fromEntries(
-      fallbackMovies.map((m) => [m.id, "none"])
-    ) as Record<number, MovieState>;
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fetchedMovies.map((m) => [m.id, 1000])));
+      } else {
+        setDiagnostic("requête ok, mais aucun film retourné");
+        setMovies(fallbackMovies);
+        setMoviesSource("fallback");
 
-    setMovieStates(initialStates);
-    setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
-  }
+        const initialStates = Object.fromEntries(
+          fallbackMovies.map((m) => [m.id, "none"])
+        ) as Record<number, MovieState>;
 
-  setIsLoadingMovies(false);
-}
+        setMovieStates(initialStates);
+        setScores(Object.fromEntries(fallbackMovies.map((m) => [m.id, 1000])));
+      }
+
+      setIsLoadingMovies(false);
+    }
 
     loadMovies();
   }, []);
@@ -633,44 +640,44 @@ const fetchedMovies: Movie[] = data.map((m) => ({
     setCurrentPair(nextPair);
   }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
 
-const chooseState = async (movieId: number) => {
-  const next = nextState(movieStates[movieId] ?? "none");
-  const updated = { ...movieStates, [movieId]: next };
+  const chooseState = async (movieId: number) => {
+    const next = nextState(movieStates[movieId] ?? "none");
+    const updated = { ...movieStates, [movieId]: next };
 
-  setMovieStates(updated);
-  setScores(buildInitialScores(movies, updated));
+    setMovieStates(updated);
+    setScores(buildInitialScores(movies, updated));
 
-  if (profileId) {
-    await saveMovieState(profileId, movieId, next);
-  }
-};
+    if (profileId) {
+      await saveMovieState(profileId, movieId, next);
+    }
+  };
 
-const start = async () => {
-  const cleanAlias = alias.trim();
-  if (!cleanAlias) return;
+  const start = async () => {
+    const cleanAlias = alias.trim();
+    if (!cleanAlias) return;
 
-  const id = await getOrCreateProfile(cleanAlias);
-  setProfileId(id);
+    const id = await getOrCreateProfile(cleanAlias);
+    setProfileId(id);
 
-  if (id) {
-    const savedStates = await loadSavedStates(id);
+    if (id) {
+      const savedStates = await loadSavedStates(id);
 
-    if (savedStates && Object.keys(savedStates).length > 0) {
-      const mergedStates = Object.fromEntries(
-        movies.map((m) => [m.id, savedStates[m.id] ?? "none"])
-      ) as Record<number, MovieState>;
+      if (savedStates && Object.keys(savedStates).length > 0) {
+        const mergedStates = Object.fromEntries(
+          movies.map((m) => [m.id, savedStates[m.id] ?? "none"])
+        ) as Record<number, MovieState>;
 
-      setMovieStates(mergedStates);
-      setScores(buildInitialScores(movies, mergedStates));
+        setMovieStates(mergedStates);
+        setScores(buildInitialScores(movies, mergedStates));
+      } else {
+        setScores(buildInitialScores(movies, movieStates));
+      }
     } else {
       setScores(buildInitialScores(movies, movieStates));
     }
-  } else {
-    setScores(buildInitialScores(movies, movieStates));
-  }
 
-  setScreen("triage");
-};
+    setScreen("triage");
+  };
 
   const openDuels = () => {
     const initialScores = buildInitialScores(movies, movieStates);
@@ -773,8 +780,8 @@ const start = async () => {
               <div style={{ marginTop: 16, fontSize: 13, color: "#64748b" }}>
                 Source des films : {isLoadingMovies ? "chargement..." : moviesSource}
                 <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
-  Diagnostic : {diagnostic || "aucun"}
-</div>
+                  Diagnostic : {diagnostic || "aucun"}
+                </div>
               </div>
             </div>
 
@@ -868,10 +875,10 @@ const start = async () => {
                   marginBottom: 10,
                 }}
               >
-<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-  <PlayerBadge alias={alias} />
-</div>
-<BadgePill dark>Phase 1</BadgePill>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <PlayerBadge alias={alias} />
+                </div>
+                <BadgePill dark>Phase 1</BadgePill>
               </div>
 
               <div
@@ -978,13 +985,13 @@ const start = async () => {
                   marginBottom: 10,
                 }}
               >
-<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-  <PlayerBadge alias={alias} />
-  <div>
-    <div style={{ fontSize: 14, color: "#64748b" }}>Phase 2</div>
-    <div style={{ fontSize: 20, fontWeight: 900 }}>Duels de départage</div>
-  </div>
-</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <PlayerBadge alias={alias} />
+                  <div>
+                    <div style={{ fontSize: 14, color: "#64748b" }}>Phase 2</div>
+                    <div style={{ fontSize: 20, fontWeight: 900 }}>Duels de départage</div>
+                  </div>
+                </div>
                 <BadgePill dark>{duelsResolved} tranchés</BadgePill>
               </div>
 
@@ -1111,221 +1118,192 @@ const start = async () => {
           </div>
         )}
 
-{screen === "ranking" && (
-  <div>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 14,
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
-        <div style={{ marginTop: 8 }}>
-          <PlayerBadge alias={alias} />
-        </div>
-        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 8 }}>
-          Top provisoire de {alias}
-        </div>
-      </div>
-
-      <div
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: 24,
-          background: "#e0e7ff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#d97706",
-        }}
-      >
-        <Trophy size={34} />
-      </div>
-    </div>
-
-    <ScreenCard>
-      <div style={{ padding: 18 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 18,
-            fontWeight: 800,
-            marginBottom: 14,
-          }}
-        >
-          <Users size={18} />
-          Aperçu du classement
-        </div>
-
-        <div style={{ display: "grid", gap: 12 }}>
-          {rankingPreview.map((movie, index) => (
+        {screen === "ranking" && (
+          <div>
             <div
-              key={movie.id}
               style={{
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
                 gap: 12,
-                borderRadius: 20,
-                background: "#f8fafc",
-                padding: 12,
+                marginBottom: 14,
               }}
             >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 999,
-                  background: "#ffffff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 800,
-                  boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-                  flexShrink: 0,
-                }}
-              >
-                {index + 1}
-              </div>
-
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 18,
-                  background: "#ffffff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 26,
-                  boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-                  flexShrink: 0,
-                  overflow: "hidden",
-                }}
-              >
-                {movie.posterUrl ? (
-                  <img
-                    src={movie.posterUrl}
-                    alt={movie.title}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  movie.poster
-                )}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    lineHeight: 1.2,
-                    marginBottom: 4,
-                  }}
-                >
-                  {movie.title}
+              <div>
+                <div style={{ fontSize: 14, color: "#64748b" }}>Résultats</div>
+                <div style={{ marginTop: 8 }}>
+                  <PlayerBadge alias={alias} />
                 </div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>
-                  {movie.year} · {movie.genre}
+                <div style={{ fontSize: 24, fontWeight: 900, marginTop: 8 }}>
+                  Top provisoire de {alias}
                 </div>
               </div>
 
               <div
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  background: "#ffffff",
-                  border: "1px solid #dbeafe",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
+                  width: 72,
+                  height: 72,
+                  borderRadius: 24,
+                  background: "#e0e7ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#d97706",
                 }}
               >
-                {stateMeta[movieStates[movie.id] ?? "none"].label}
+                <Trophy size={34} />
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </ScreenCard>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 12,
-        marginTop: 16,
-      }}
-    >
-      <button
-        onClick={openDuels}
-        style={{
-          height: 48,
-          borderRadius: 18,
-          border: "none",
-          background: "#4f46e5",
-          color: "#ffffff",
-          fontWeight: 800,
-          fontSize: 15,
-          cursor: "pointer",
-        }}
-      >
-        Continuer
-      </button>
+            <ScreenCard>
+              <div style={{ padding: 18 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 18,
+                    fontWeight: 800,
+                    marginBottom: 14,
+                  }}
+                >
+                  <Users size={18} />
+                  Aperçu du classement
+                </div>
 
-      <button
-        onClick={() => setScreen("triage")}
-        style={{
-          height: 48,
-          borderRadius: 18,
-          border: "1px solid #cbd5e1",
-          background: "#ffffff",
-          color: "#0f172a",
-          fontWeight: 700,
-          fontSize: 15,
-          cursor: "pointer",
-        }}
-      >
-        Ajuster le tri
-      </button>
-    </div>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {rankingPreview.map((movie, index) => (
+                    <div
+                      key={movie.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        borderRadius: 20,
+                        background: "#f8fafc",
+                        padding: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 999,
+                          background: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 800,
+                          boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {index + 1}
+                      </div>
 
-    <button
-      onClick={resetAll}
-      style={{
-        marginTop: 14,
-        width: "100%",
-        height: 48,
-        borderRadius: 18,
-        border: "none",
-        background: "transparent",
-        color: "#0f172a",
-        fontWeight: 700,
-        fontSize: 15,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        cursor: "pointer",
-      }}
-    >
-      <RefreshCw size={16} />
-      Recommencer du début
-    </button>
-  </div>
-)}
+                      <PosterBox movie={movie} size="mini" />
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "#0f172a",
+                            lineHeight: 1.2,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {movie.title}
+                        </div>
+                        <div style={{ fontSize: 14, color: "#64748b" }}>
+                          {movie.year} · {movie.genre}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 999,
+                          background: "#ffffff",
+                          border: "1px solid #dbeafe",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {stateMeta[movieStates[movie.id] ?? "none"].label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ScreenCard>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
+              <button
+                onClick={openDuels}
+                style={{
+                  height: 48,
+                  borderRadius: 18,
+                  border: "none",
+                  background: "#4f46e5",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Continuer
+              </button>
+
+              <button
+                onClick={() => setScreen("triage")}
+                style={{
+                  height: 48,
+                  borderRadius: 18,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#0f172a",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Ajuster le tri
+              </button>
+            </div>
+
+            <button
+              onClick={resetAll}
+              style={{
+                marginTop: 14,
+                width: "100%",
+                height: 48,
+                borderRadius: 18,
+                border: "none",
+                background: "transparent",
+                color: "#0f172a",
+                fontWeight: 700,
+                fontSize: 15,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCw size={16} />
+              Recommencer du début
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
