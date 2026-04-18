@@ -514,11 +514,23 @@ function PlayerBadge({ alias }: { alias: string }) {
   );
 }
 
+function shuffleArray<T>(array: T[]): T[] {
+  const copy = [...array];
+
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
   const [moviesSource, setMoviesSource] = useState<"supabase" | "fallback">("fallback");
-
+const [triageOrder, setTriageOrder] = useState<number[]>([]);
+const [triagePage, setTriagePage] = useState(0);
   const [screen, setScreen] = useState<"welcome" | "triage" | "duels" | "ranking">("welcome");
   const [alias, setAlias] = useState("");
   const [movieStates, setMovieStates] = useState<Record<number, MovieState>>(
@@ -633,6 +645,24 @@ export default function Page() {
       .slice(0, 10);
   }, [movies, scores]);
 
+useEffect(() => {
+  if (!movies.length) return;
+
+  const shuffledIds = shuffleArray(movies.map((m) => m.id));
+  setTriageOrder(shuffledIds);
+  setTriagePage(0);
+}, [movies]);
+
+const triageBatch = useMemo(() => {
+  const batchSize = 10;
+  const start = triagePage * batchSize;
+  const currentIds = triageOrder.slice(start, start + batchSize);
+
+  return currentIds
+    .map((id) => movies.find((m) => m.id === id))
+    .filter((m): m is Movie => Boolean(m));
+}, [movies, triageOrder, triagePage]);
+  
   useEffect(() => {
     if (screen !== "duels") return;
     if (currentPair) return;
@@ -640,6 +670,22 @@ export default function Page() {
     setCurrentPair(nextPair);
   }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
 
+const goToNextTriageBatch = () => {
+  const batchSize = 10;
+  const totalPages = Math.ceil(triageOrder.length / batchSize);
+
+  if (totalPages <= 1) return;
+
+  if (triagePage + 1 < totalPages) {
+    setTriagePage((p) => p + 1);
+    return;
+  }
+
+  const reshuffledIds = shuffleArray(movies.map((m) => m.id));
+  setTriageOrder(reshuffledIds);
+  setTriagePage(0);
+};
+  
   const chooseState = async (movieId: number) => {
     const next = nextState(movieStates[movieId] ?? "none");
     const updated = { ...movieStates, [movieId]: next };
@@ -919,17 +965,39 @@ export default function Page() {
               </div>
             </ScreenCard>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {movies.map((movie) => (
-                <MovieTile
-                  key={movie.id}
-                  movie={movie}
-                  state={movieStates[movie.id] ?? "none"}
-                  onTap={() => chooseState(movie.id)}
-                />
-              ))}
-            </div>
+<div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
+  Groupe {triagePage + 1} · {triageBatch.length} films affichés
+</div>
 
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+  {triageBatch.map((movie) => (
+    <MovieTile
+      key={movie.id}
+      movie={movie}
+      state={movieStates[movie.id] ?? "none"}
+      onTap={() => chooseState(movie.id)}
+    />
+  ))}
+</div>
+
+            <button
+  onClick={goToNextTriageBatch}
+  style={{
+    marginTop: 16,
+    width: "100%",
+    height: 48,
+    borderRadius: 18,
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#0f172a",
+    fontWeight: 700,
+    fontSize: 15,
+    cursor: "pointer",
+  }}
+>
+  Prochain groupe
+</button>
+            
             <div
               style={{
                 display: "grid",
