@@ -479,35 +479,7 @@ function PlayerBadge({ alias }: { alias: string }) {
   );
 }
 
-async function getOrCreateProfile(displayName: string) {
-  if (!supabase) return null;
 
-  const { data: existing, error: existingError } = await supabase
-    .from("profiles")
-    .select("id, display_name")
-    .eq("display_name", displayName)
-    .maybeSingle();
-
-  if (existingError) {
-    console.error("Erreur lecture profile:", existingError.message);
-    return null;
-  }
-
-  if (existing) return existing.id as string;
-
-  const { data: created, error: createError } = await supabase
-    .from("profiles")
-    .insert({ display_name: displayName })
-    .select("id")
-    .single();
-
-  if (createError) {
-    console.error("Erreur création profile:", createError.message);
-    return null;
-  }
-
-  return created.id as string;
-}
 
 async function loadSavedStates(profileId: string) {
   if (!supabase) return null;
