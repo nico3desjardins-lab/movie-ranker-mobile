@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, motionValue, useTransform } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import {
   Film,
@@ -371,34 +371,87 @@ function DuelCard({
   onChoose: () => void;
   swipeDirection: "left" | "right";
 }) {
+  const x = motionValue(0);
+
+  const rotate = useTransform(x, [-140, 0, 140], [-8, 0, 8]);
+  const overlayOpacity = useTransform(
+    x,
+    swipeDirection === "right" ? [0, 60, 140] : [-140, -60, 0],
+    [0, 0.35, 0.75]
+  );
+
+  const chooseOpacity = useTransform(
+    x,
+    swipeDirection === "right" ? [0, 60, 140] : [-140, -60, 0],
+    [0, 0.6, 1]
+  );
+
   return (
-    <ScreenCard style={{ height: "100%" }}>
+    <ScreenCard style={{ height: "100%", overflow: "hidden", position: "relative" }}>
       <motion.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
-        onDragEnd={(_, info) => {
-          const offsetX = info.offset.x;
-          const threshold = 90;
-
-          if (swipeDirection === "right" && offsetX > threshold) {
-            onChoose();
-          }
-
-          if (swipeDirection === "left" && offsetX < -threshold) {
-            onChoose();
-          }
-        }}
         style={{
+          x,
+          rotate,
           padding: 12,
           display: "flex",
           flexDirection: "column",
           height: "100%",
           touchAction: "pan-y",
           cursor: "grab",
+          position: "relative",
         }}
         whileTap={{ cursor: "grabbing", scale: 0.99 }}
+        onDragEnd={(_, info) => {
+          const offsetX = info.offset.x;
+          const threshold = 90;
+
+          if (swipeDirection === "right" && offsetX > threshold) {
+            onChoose();
+            return;
+          }
+
+          if (swipeDirection === "left" && offsetX < -threshold) {
+            onChoose();
+            return;
+          }
+
+          x.set(0);
+        }}
       >
+        <motion.div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(79, 70, 229, 0.14)",
+            pointerEvents: "none",
+            opacity: overlayOpacity,
+            borderRadius: 28,
+          }}
+        />
+
+        <motion.div
+          style={{
+            position: "absolute",
+            top: 14,
+            [swipeDirection === "right" ? "left" : "right"]: 14,
+            padding: "8px 12px",
+            borderRadius: 999,
+            background: "#4f46e5",
+            color: "#ffffff",
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: "0.02em",
+            pointerEvents: "none",
+            opacity: chooseOpacity,
+            zIndex: 2,
+          }}
+        >
+          CHOISIR
+        </motion.div>
+
         <PosterBox movie={movie} size="duel" />
 
         <div style={{ minHeight: 86 }}>
@@ -423,9 +476,12 @@ function DuelCard({
             marginTop: 10,
             marginBottom: 12,
             fontSize: 12,
-            fontWeight: 600,
-            color: "#64748b",
+            fontWeight: 700,
             textAlign: "center",
+            borderRadius: 999,
+            padding: "8px 12px",
+            background: "#eef2ff",
+            color: "#312e81",
           }}
         >
           {swipeDirection === "right"
@@ -454,6 +510,7 @@ function DuelCard({
     </ScreenCard>
   );
 }
+
 async function getOrCreateProfile(displayName: string) {
   if (!supabase) return null;
 
@@ -570,8 +627,8 @@ export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
   const [moviesSource, setMoviesSource] = useState<"supabase" | "fallback">("fallback");
-const [triageOrder, setTriageOrder] = useState<number[]>([]);
-const [triagePage, setTriagePage] = useState(0);
+  const [triageOrder, setTriageOrder] = useState<number[]>([]);
+  const [triagePage, setTriagePage] = useState(0);
   const [screen, setScreen] = useState<"welcome" | "triage" | "duels" | "ranking">("welcome");
   const [alias, setAlias] = useState("");
   const [movieStates, setMovieStates] = useState<Record<number, MovieState>>(
@@ -667,6 +724,14 @@ const [triagePage, setTriagePage] = useState(0);
     loadMovies();
   }, []);
 
+  useEffect(() => {
+    if (!movies.length) return;
+
+    const shuffledIds = shuffleArray(movies.map((m) => m.id));
+    setTriageOrder(shuffledIds);
+    setTriagePage(0);
+  }, [movies]);
+
   const stats = useMemo(() => {
     const values = Object.values(movieStates);
     return {
@@ -686,24 +751,16 @@ const [triagePage, setTriagePage] = useState(0);
       .slice(0, 10);
   }, [movies, scores]);
 
-useEffect(() => {
-  if (!movies.length) return;
+  const triageBatch = useMemo(() => {
+    const batchSize = 10;
+    const start = triagePage * batchSize;
+    const currentIds = triageOrder.slice(start, start + batchSize);
 
-  const shuffledIds = shuffleArray(movies.map((m) => m.id));
-  setTriageOrder(shuffledIds);
-  setTriagePage(0);
-}, [movies]);
+    return currentIds
+      .map((id) => movies.find((m) => m.id === id))
+      .filter((m): m is Movie => Boolean(m));
+  }, [movies, triageOrder, triagePage]);
 
-const triageBatch = useMemo(() => {
-  const batchSize = 10;
-  const start = triagePage * batchSize;
-  const currentIds = triageOrder.slice(start, start + batchSize);
-
-  return currentIds
-    .map((id) => movies.find((m) => m.id === id))
-    .filter((m): m is Movie => Boolean(m));
-}, [movies, triageOrder, triagePage]);
-  
   useEffect(() => {
     if (screen !== "duels") return;
     if (currentPair) return;
@@ -711,22 +768,22 @@ const triageBatch = useMemo(() => {
     setCurrentPair(nextPair);
   }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
 
-const goToNextTriageBatch = () => {
-  const batchSize = 10;
-  const totalPages = Math.ceil(triageOrder.length / batchSize);
+  const goToNextTriageBatch = () => {
+    const batchSize = 10;
+    const totalPages = Math.ceil(triageOrder.length / batchSize);
 
-  if (totalPages <= 1) return;
+    if (totalPages <= 1) return;
 
-  if (triagePage + 1 < totalPages) {
-    setTriagePage((p) => p + 1);
-    return;
-  }
+    if (triagePage + 1 < totalPages) {
+      setTriagePage((p) => p + 1);
+      return;
+    }
 
-  const reshuffledIds = shuffleArray(movies.map((m) => m.id));
-  setTriageOrder(reshuffledIds);
-  setTriagePage(0);
-};
-  
+    const reshuffledIds = shuffleArray(movies.map((m) => m.id));
+    setTriageOrder(reshuffledIds);
+    setTriagePage(0);
+  };
+
   const chooseState = async (movieId: number) => {
     const next = nextState(movieStates[movieId] ?? "none");
     const updated = { ...movieStates, [movieId]: next };
@@ -1006,39 +1063,39 @@ const goToNextTriageBatch = () => {
               </div>
             </ScreenCard>
 
-<div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-  Groupe {triagePage + 1} · {triageBatch.length} films affichés
-</div>
+            <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
+              Groupe {triagePage + 1} · {triageBatch.length} films affichés
+            </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-  {triageBatch.map((movie) => (
-    <MovieTile
-      key={movie.id}
-      movie={movie}
-      state={movieStates[movie.id] ?? "none"}
-      onTap={() => chooseState(movie.id)}
-    />
-  ))}
-</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {triageBatch.map((movie) => (
+                <MovieTile
+                  key={movie.id}
+                  movie={movie}
+                  state={movieStates[movie.id] ?? "none"}
+                  onTap={() => chooseState(movie.id)}
+                />
+              ))}
+            </div>
 
             <button
-  onClick={goToNextTriageBatch}
-  style={{
-    marginTop: 16,
-    width: "100%",
-    height: 48,
-    borderRadius: 18,
-    border: "1px solid #cbd5e1",
-    background: "#ffffff",
-    color: "#0f172a",
-    fontWeight: 700,
-    fontSize: 15,
-    cursor: "pointer",
-  }}
->
-  Prochain groupe
-</button>
-            
+              onClick={goToNextTriageBatch}
+              style={{
+                marginTop: 16,
+                width: "100%",
+                height: 48,
+                borderRadius: 18,
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#0f172a",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              Prochain groupe
+            </button>
+
             <div
               style={{
                 display: "grid",
@@ -1183,16 +1240,16 @@ const goToNextTriageBatch = () => {
                     alignItems: "stretch",
                   }}
                 >
-<DuelCard
-  movie={currentPair[0]}
-  swipeDirection="right"
-  onChoose={() => resolveDuel(currentPair[0].id)}
-/>
-<DuelCard
-  movie={currentPair[1]}
-  swipeDirection="left"
-  onChoose={() => resolveDuel(currentPair[1].id)}
-/>
+                  <DuelCard
+                    movie={currentPair[0]}
+                    swipeDirection="right"
+                    onChoose={() => resolveDuel(currentPair[0].id)}
+                  />
+                  <DuelCard
+                    movie={currentPair[1]}
+                    swipeDirection="left"
+                    onChoose={() => resolveDuel(currentPair[1].id)}
+                  />
                 </div>
 
                 <button
