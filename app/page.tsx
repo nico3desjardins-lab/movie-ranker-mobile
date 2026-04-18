@@ -479,51 +479,6 @@ function PlayerBadge({ alias }: { alias: string }) {
   );
 }
 
-
-
-async function loadSavedStates(profileId: string) {
-  if (!supabase) return null;
-
-  const { data, error } = await supabase
-    .from("movie_states")
-    .select("movie_id, state")
-    .eq("profile_id", profileId);
-
-  if (error) {
-    console.error("Erreur chargement états:", error.message);
-    return null;
-  }
-
-  if (!data || !data.length) return {};
-
-  return Object.fromEntries(
-    data.map((row) => [Number(row.movie_id), row.state as MovieState])
-  ) as Record<number, MovieState>;
-}
-
-async function saveMovieState(
-  profileId: string,
-  movieId: number,
-  state: MovieState
-) {
-  if (!supabase) return;
-
-  const { error } = await supabase
-    .from("movie_states")
-    .upsert(
-      {
-        profile_id: profileId,
-        movie_id: movieId,
-        state,
-      },
-      { onConflict: "profile_id,movie_id" }
-    );
-
-  if (error) {
-    console.error("Erreur sauvegarde état:", error.message);
-  }
-}
-
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
