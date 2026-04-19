@@ -137,7 +137,10 @@ function chooseNextPair(
     return s === "favorite" || s === "liked" || s === "none";
   });
 
-  const pool = preferred.length >= 2 ? preferred : admissible;
+  const basePool = preferred.length >= 2 ? preferred : admissible;
+
+  // Important : on mélange le pool pour casser l’ordre déterministe
+  const pool = shuffleArray(basePool);
 
   const strictCandidates: { pair: [Movie, Movie]; scoreGap: number }[] = [];
   const relaxedCandidates: {
@@ -176,7 +179,11 @@ function chooseNextPair(
 
   if (strictCandidates.length > 0) {
     strictCandidates.sort((x, y) => x.scoreGap - y.scoreGap);
-    return strictCandidates[0].pair;
+
+    const bestGap = strictCandidates[0].scoreGap;
+    const topCandidates = strictCandidates.filter((c) => c.scoreGap === bestGap);
+
+    return topCandidates[Math.floor(Math.random() * topCandidates.length)].pair;
   }
 
   if (relaxedCandidates.length > 0) {
@@ -187,12 +194,18 @@ function chooseNextPair(
       return x.scoreGap - y.scoreGap;
     });
 
-    return relaxedCandidates[0].pair;
+    const bestRecentCount = relaxedCandidates[0].recentCount;
+    const bestGap = relaxedCandidates[0].scoreGap;
+
+    const topCandidates = relaxedCandidates.filter(
+      (c) => c.recentCount === bestRecentCount && c.scoreGap === bestGap
+    );
+
+    return topCandidates[Math.floor(Math.random() * topCandidates.length)].pair;
   }
 
   return pool.length >= 2 ? [pool[0], pool[1]] : null;
 }
-
 function iconForState(state: MovieState) {
   switch (state) {
     case "unseen":
