@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { motion, motionValue, useTransform } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import {
   Film,
@@ -371,7 +371,7 @@ function DuelCard({
   onChoose: () => void;
   swipeDirection: "left" | "right";
 }) {
-  const x = motionValue(0);
+  const x = useMotionValue(0);
 
   const rotate = useTransform(x, [-140, 0, 140], [-8, 0, 8]);
   const overlayOpacity = useTransform(
@@ -417,8 +417,6 @@ function DuelCard({
             onChoose();
             return;
           }
-
-          x.set(0);
         }}
       >
         <motion.div
@@ -436,7 +434,8 @@ function DuelCard({
           style={{
             position: "absolute",
             top: 14,
-            [swipeDirection === "right" ? "left" : "right"]: 14,
+            left: swipeDirection === "right" ? 14 : undefined,
+            right: swipeDirection === "left" ? 14 : undefined,
             padding: "8px 12px",
             borderRadius: 999,
             background: "#4f46e5",
