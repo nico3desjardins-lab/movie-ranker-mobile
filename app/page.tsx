@@ -139,58 +139,58 @@ function chooseNextPair(
 
   const pool = preferred.length >= 2 ? preferred : admissible;
 
-  const buildCandidates = (strictCooldown: boolean) => {
-    const candidates: { pair: [Movie, Movie]; gap: number; freshnessPenalty: number }[] = [];
+  const strictCandidates: { pair: [Movie, Movie]; scoreGap: number }[] = [];
+  const relaxedCandidates: {
+    pair: [Movie, Movie];
+    scoreGap: number;
+    recentCount: number;
+  }[] = [];
 
-    for (let i = 0; i < pool.length; i++) {
-      for (let j = i + 1; j < pool.length; j++) {
-        const a = pool[i];
-        const b = pool[j];
+  for (let i = 0; i < pool.length; i++) {
+    for (let j = i + 1; j < pool.length; j++) {
+      const a = pool[i];
+      const b = pool[j];
 
-        const key = [a.id, b.id].sort((x, y) => x - y).join("-");
-        if (recentPairs.includes(key)) continue;
+      const key = [a.id, b.id].sort((x, y) => x - y).join("-");
+      if (recentPairs.includes(key)) continue;
 
-        if (strictCooldown) {
-          if (recentMovieIds.includes(a.id) || recentMovieIds.includes(b.id)) {
-            continue;
-          }
-        }
+      const scoreGap = Math.abs((scores[a.id] ?? 1000) - (scores[b.id] ?? 1000));
+      const aRecent = recentMovieIds.includes(a.id);
+      const bRecent = recentMovieIds.includes(b.id);
+      const recentCount = (aRecent ? 1 : 0) + (bRecent ? 1 : 0);
 
-        const gap = Math.abs((scores[a.id] ?? 1000) - (scores[b.id] ?? 1000));
-
-        const freshnessPenalty =
-          (recentMovieIds.includes(a.id) ? 1 : 0) +
-          (recentMovieIds.includes(b.id) ? 1 : 0);
-
-        candidates.push({
+      if (!aRecent && !bRecent) {
+        strictCandidates.push({
           pair: [a, b],
-          gap,
-          freshnessPenalty,
+          scoreGap,
         });
       }
+
+      relaxedCandidates.push({
+        pair: [a, b],
+        scoreGap,
+        recentCount,
+      });
     }
-
-    return candidates;
-  };
-
-  let candidates = buildCandidates(true);
-
-  if (!candidates.length) {
-    candidates = buildCandidates(false);
   }
 
-  if (!candidates.length) {
-    return pool.length >= 2 ? [pool[0], pool[1]] : null;
+  if (strictCandidates.length > 0) {
+    strictCandidates.sort((x, y) => x.scoreGap - y.scoreGap);
+    return strictCandidates[0].pair;
   }
 
-  candidates.sort((x, y) => {
-    if (x.freshnessPenalty !== y.freshnessPenalty) {
-      return x.freshnessPenalty - y.freshnessPenalty;
-    }
-    return x.gap - y.gap;
-  });
+  if (relaxedCandidates.length > 0) {
+    relaxedCandidates.sort((x, y) => {
+      if (x.recentCount !== y.recentCount) {
+        return x.recentCount - y.recentCount;
+      }
+      return x.scoreGap - y.scoreGap;
+    });
 
-  return candidates[0].pair;
+    return relaxedCandidates[0].pair;
+  }
+
+  return pool.length >= 2 ? [pool[0], pool[1]] : null;
 }
 
 function iconForState(state: MovieState) {
@@ -884,7 +884,7 @@ const resolveDuel = (winnerId?: number) => {
   const [left, right] = currentPair;
   const pairKey = [left.id, right.id].sort((a, b) => a - b).join("-");
   const nextRecentPairs = [...recentPairs.slice(-14), pairKey];
-  const nextRecentMovieIds = [...recentMovieIds.slice(-5), left.id, right.id];
+const nextRecentMovieIds = [...recentMovieIds.slice(-10), left.id, right.id];
 
   let nextScores = scores;
 
@@ -919,9 +919,10 @@ const resolveDuel = (winnerId?: number) => {
     setAlias("");
     setMovieStates(emptyStates);
     setScores(Object.fromEntries(movies.map((m) => [m.id, 1000])));
-    setCurrentPair(null);
-    setRecentPairs([]);
-    setDuelsResolved(0);
+ setCurrentPair(null);
+setRecentPairs([]);
+setRecentMovieIds([]);
+setDuelsResolved(0);
     setDuelsSkipped(0);
     setScreen("welcome");
   };
