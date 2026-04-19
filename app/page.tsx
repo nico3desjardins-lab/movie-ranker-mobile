@@ -20,6 +20,8 @@ import {
 const stateCycle = ["none", "unseen", "meh", "liked", "favorite"] as const;
 type MovieState = (typeof stateCycle)[number];
 
+type Screen = "welcome" | "triage" | "warmup" | "duels" | "ranking";
+
 type Movie = {
   id: number;
   title: string;
@@ -56,7 +58,7 @@ const stateMeta: Record<
   },
   unseen: {
     label: "Pas vu",
-    weight: 0,
+    weight: 1000,
     tone: "#e2e8f0",
     badgeTone: "#e2e8f0",
   },
@@ -118,6 +120,17 @@ function buildInitialScores(
   ) as Record<number, number>;
 }
 
+function shuffleArray<T>(array: T[]): T[] {
+  const copy = [...array];
+
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+
 function chooseNextPair(
   movies: Movie[],
   scores: Record<number, number>,
@@ -138,8 +151,6 @@ function chooseNextPair(
   });
 
   const basePool = preferred.length >= 2 ? preferred : admissible;
-
-  // Important : on mélange le pool pour casser l’ordre déterministe
   const pool = shuffleArray(basePool);
 
   const strictCandidates: { pair: [Movie, Movie]; scoreGap: number }[] = [];
@@ -179,10 +190,8 @@ function chooseNextPair(
 
   if (strictCandidates.length > 0) {
     strictCandidates.sort((x, y) => x.scoreGap - y.scoreGap);
-
     const bestGap = strictCandidates[0].scoreGap;
     const topCandidates = strictCandidates.filter((c) => c.scoreGap === bestGap);
-
     return topCandidates[Math.floor(Math.random() * topCandidates.length)].pair;
   }
 
@@ -196,7 +205,6 @@ function chooseNextPair(
 
     const bestRecentCount = relaxedCandidates[0].recentCount;
     const bestGap = relaxedCandidates[0].scoreGap;
-
     const topCandidates = relaxedCandidates.filter(
       (c) => c.recentCount === bestRecentCount && c.scoreGap === bestGap
     );
@@ -206,6 +214,7 @@ function chooseNextPair(
 
   return pool.length >= 2 ? [pool[0], pool[1]] : null;
 }
+
 function iconForState(state: MovieState) {
   switch (state) {
     case "unseen":
@@ -663,26 +672,12 @@ function PlayerBadge({ alias }: { alias: string }) {
   );
 }
 
-function shuffleArray<T>(array: T[]): T[] {
-  const copy = [...array];
-
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-
-  return copy;
-}
-
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
   const [moviesSource, setMoviesSource] = useState<"supabase" | "fallback">("fallback");
-  const [triageOrder, setTriageOrder] = useState<number[]>([]);
-  const [triagePage, setTriagePage] = useState(0);
-  const [screen, setScreen] = useState<"welcome" | "triage" | "duels" | "ranking">("welcome");
+  const [screen, setScreen] = useState<Screen>("welcome");
   const [alias, setAlias] = useState("");
-  const [recentMovieIds, setRecentMovieIds] = useState<number[]>([]);
   const [movieStates, setMovieStates] = useState<Record<number, MovieState>>(
     Object.fromEntries(fallbackMovies.map((m) => [m.id, "none"])) as Record<number, MovieState>
   );
@@ -691,10 +686,23 @@ export default function Page() {
   );
   const [currentPair, setCurrentPair] = useState<[Movie, Movie] | null>(null);
   const [recentPairs, setRecentPairs] = useState<string[]>([]);
+  const [recentMovieIds, setRecentMovieIds] = useState<number[]>([]);
   const [duelsResolved, setDuelsResolved] = useState(0);
   const [duelsSkipped, setDuelsSkipped] = useState(0);
   const [diagnostic, setDiagnostic] = useState("");
   const [profileId, setProfileId] = useState<string | null>(null);
+
+  const [triageOrder, setTriageOrder] = useState<number[]>([]);
+  const [triagePage, setTriagePage] = useState(0);
+
+  const [warmupOrder, setWarmupOrder] = useState<number[]>([]);
+  const [warmupRound, setWarmupRound] = useState(0);
+  const [warmupSelectedIds, setWarmupSelectedIds] = useState<number[]>([]);
+  const [warmupRecentlyShownIds, setWarmupRecentlyShownIds] = useState<number[]>([]);
+
+  const warmupRoundsTotal = 8;
+  const warmupBatchSize = 6;
+  const warmupKeepCount = 2;
 
   useEffect(() => {
     async function loadMovies() {
@@ -779,8 +787,7 @@ export default function Page() {
   useEffect(() => {
     if (!movies.length) return;
 
-    const shuffledIds = shuffleArray(movies.map((m) => m.id));
-    setTriageOrder(shuffledIds);
+    setTriageOrder(shuffleArray(movies.map((m) => m.id)));
     setTriagePage(0);
   }, [movies]);
 
@@ -799,9 +806,10 @@ export default function Page() {
 
   const rankingPreview = useMemo(() => {
     return [...movies]
+      .filter((m) => (movieStates[m.id] ?? "none") !== "unseen")
       .sort((a, b) => (scores[b.id] ?? 1000) - (scores[a.id] ?? 1000))
       .slice(0, 10);
-  }, [movies, scores]);
+  }, [movies, scores, movieStates]);
 
   const triageBatch = useMemo(() => {
     const batchSize = 10;
@@ -813,17 +821,36 @@ export default function Page() {
       .filter((m): m is Movie => Boolean(m));
   }, [movies, triageOrder, triagePage]);
 
+  const warmupEligibleIds = useMemo(() => {
+    return movies
+      .filter((m) => {
+        const state = movieStates[m.id] ?? "none";
+        return state !== "unseen" && state !== "meh";
+      })
+      .map((m) => m.id);
+  }, [movies, movieStates]);
+
+  const warmupBatch = useMemo(() => {
+    const ids = warmupOrder.slice(0, warmupBatchSize);
+    return ids
+      .map((id) => movies.find((m) => m.id === id))
+      .filter((m): m is Movie => Boolean(m));
+  }, [movies, warmupOrder]);
+
   useEffect(() => {
     if (screen !== "duels") return;
     if (currentPair) return;
-const nextPair = chooseNextPair(
-  movies,
-  scores,
-  movieStates,
-  recentPairs,
-  recentMovieIds
-);    setCurrentPair(nextPair);
-}, [screen, currentPair, movies, scores, movieStates, recentPairs, recentMovieIds]);
+
+    const nextPair = chooseNextPair(
+      movies,
+      scores,
+      movieStates,
+      recentPairs,
+      recentMovieIds
+    );
+
+    setCurrentPair(nextPair);
+  }, [screen, currentPair, movies, scores, movieStates, recentPairs, recentMovieIds]);
 
   const goToNextTriageBatch = () => {
     const batchSize = 10;
@@ -836,8 +863,7 @@ const nextPair = chooseNextPair(
       return;
     }
 
-    const reshuffledIds = shuffleArray(movies.map((m) => m.id));
-    setTriageOrder(reshuffledIds);
+    setTriageOrder(shuffleArray(movies.map((m) => m.id)));
     setTriagePage(0);
   };
 
@@ -880,49 +906,146 @@ const nextPair = chooseNextPair(
     setScreen("triage");
   };
 
-const openDuels = () => {
-  const initialScores = buildInitialScores(movies, movieStates);
-  setScores(initialScores);
-  setRecentPairs([]);
-  setRecentMovieIds([]);
-  setCurrentPair(
-    chooseNextPair(movies, initialScores, movieStates, [], [])
-  );
-  setScreen("duels");
-};
+  const openWarmup = () => {
+    const initialScores = buildInitialScores(movies, movieStates);
+    setScores(initialScores);
 
-const resolveDuel = (winnerId?: number) => {
-  if (!currentPair) return;
+    const candidates = warmupEligibleIds.length >= warmupBatchSize
+      ? shuffleArray(warmupEligibleIds)
+      : shuffleArray(
+          movies
+            .filter((m) => (movieStates[m.id] ?? "none") !== "unseen")
+            .map((m) => m.id)
+        );
 
-  const [left, right] = currentPair;
-  const pairKey = [left.id, right.id].sort((a, b) => a - b).join("-");
-  const nextRecentPairs = [...recentPairs.slice(-14), pairKey];
-const nextRecentMovieIds = [...recentMovieIds.slice(-10), left.id, right.id];
+    setWarmupOrder(candidates);
+    setWarmupRound(0);
+    setWarmupSelectedIds([]);
+    setWarmupRecentlyShownIds([]);
+    setScreen("warmup");
+  };
 
-  let nextScores = scores;
+  const toggleWarmupSelection = (movieId: number) => {
+    setWarmupSelectedIds((current) => {
+      if (current.includes(movieId)) {
+        return current.filter((id) => id !== movieId);
+      }
 
-  if (winnerId) {
-    const loserId = winnerId === left.id ? right.id : left.id;
-    nextScores = applyElo(scores, winnerId, loserId);
-    setScores(nextScores);
-    setDuelsResolved((n) => n + 1);
-  } else {
-    setDuelsSkipped((n) => n + 1);
-  }
+      if (current.length >= warmupKeepCount) {
+        return current;
+      }
 
-  setRecentPairs(nextRecentPairs);
-  setRecentMovieIds(nextRecentMovieIds);
+      return [...current, movieId];
+    });
+  };
 
-  setCurrentPair(
-    chooseNextPair(
-      movies,
-      nextScores,
-      movieStates,
-      nextRecentPairs,
-      nextRecentMovieIds
-    )
-  );
-};
+  const advanceWarmupBatch = (excludeIds: number[]) => {
+    const eligiblePool = warmupEligibleIds.filter(
+      (id) => !excludeIds.includes(id) && !warmupRecentlyShownIds.includes(id)
+    );
+
+    let nextPool = eligiblePool;
+
+    if (nextPool.length < warmupBatchSize) {
+      nextPool = warmupEligibleIds.filter((id) => !excludeIds.includes(id));
+    }
+
+    const nextBatchIds = shuffleArray(nextPool).slice(0, warmupBatchSize);
+    setWarmupOrder(nextBatchIds);
+  };
+
+  const validateWarmupRound = () => {
+    if (warmupSelectedIds.length !== warmupKeepCount) return;
+
+    const currentBatchIds = warmupBatch.map((m) => m.id);
+    const selectedSet = new Set(warmupSelectedIds);
+
+    setScores((prevScores) => {
+      const nextScores = { ...prevScores };
+
+      for (const movieId of currentBatchIds) {
+        if ((movieStates[movieId] ?? "none") === "unseen") continue;
+
+        const currentScore = nextScores[movieId] ?? 1000;
+
+        if (selectedSet.has(movieId)) {
+          nextScores[movieId] = currentScore + 25;
+        } else {
+          nextScores[movieId] = currentScore - 8;
+        }
+      }
+
+      return nextScores;
+    });
+
+    const nextRecentlyShown = [...warmupRecentlyShownIds.slice(-18), ...currentBatchIds];
+    setWarmupRecentlyShownIds(nextRecentlyShown);
+    setWarmupSelectedIds([]);
+
+    if (warmupRound + 1 >= warmupRoundsTotal) {
+      setScreen("duels");
+      setRecentPairs([]);
+      setRecentMovieIds([]);
+      setCurrentPair(
+        chooseNextPair(movies, scores, movieStates, [], [])
+      );
+      return;
+    }
+
+    setWarmupRound((r) => r + 1);
+    advanceWarmupBatch(currentBatchIds);
+  };
+
+  const skipWarmup = () => {
+    openDuels();
+  };
+
+  const openDuels = () => {
+    const initialScores = scores && Object.keys(scores).length > 0
+      ? scores
+      : buildInitialScores(movies, movieStates);
+
+    setScores(initialScores);
+    setRecentPairs([]);
+    setRecentMovieIds([]);
+    setCurrentPair(
+      chooseNextPair(movies, initialScores, movieStates, [], [])
+    );
+    setScreen("duels");
+  };
+
+  const resolveDuel = (winnerId?: number) => {
+    if (!currentPair) return;
+
+    const [left, right] = currentPair;
+    const pairKey = [left.id, right.id].sort((a, b) => a - b).join("-");
+    const nextRecentPairs = [...recentPairs.slice(-14), pairKey];
+    const nextRecentMovieIds = [...recentMovieIds.slice(-10), left.id, right.id];
+
+    let nextScores = scores;
+
+    if (winnerId) {
+      const loserId = winnerId === left.id ? right.id : left.id;
+      nextScores = applyElo(scores, winnerId, loserId);
+      setScores(nextScores);
+      setDuelsResolved((n) => n + 1);
+    } else {
+      setDuelsSkipped((n) => n + 1);
+    }
+
+    setRecentPairs(nextRecentPairs);
+    setRecentMovieIds(nextRecentMovieIds);
+
+    setCurrentPair(
+      chooseNextPair(
+        movies,
+        nextScores,
+        movieStates,
+        nextRecentPairs,
+        nextRecentMovieIds
+      )
+    );
+  };
 
   const resetAll = () => {
     const emptyStates = Object.fromEntries(
@@ -932,12 +1055,22 @@ const nextRecentMovieIds = [...recentMovieIds.slice(-10), left.id, right.id];
     setAlias("");
     setMovieStates(emptyStates);
     setScores(Object.fromEntries(movies.map((m) => [m.id, 1000])));
- setCurrentPair(null);
-setRecentPairs([]);
-setRecentMovieIds([]);
-setDuelsResolved(0);
+    setCurrentPair(null);
+    setRecentPairs([]);
+    setRecentMovieIds([]);
+    setDuelsResolved(0);
     setDuelsSkipped(0);
+    setTriagingDefaults();
     setScreen("welcome");
+  };
+
+  const setTriagingDefaults = () => {
+    setTriageOrder(shuffleArray(movies.map((m) => m.id)));
+    setTriagePage(0);
+    setWarmupOrder([]);
+    setWarmupRound(0);
+    setWarmupSelectedIds([]);
+    setWarmupRecentlyShownIds([]);
   };
 
   const duelFinished = screen === "duels" && !currentPair;
@@ -990,7 +1123,7 @@ setDuelsResolved(0);
               </div>
 
               <div style={{ marginTop: 14, fontSize: 16, lineHeight: 1.55, color: "#475569" }}>
-                Faites émerger votre top personnel à partir d’un tri rapide, puis de duels entre films proches.
+                Faites émerger votre top personnel à partir d’un tri rapide, puis de sélections par lot et de duels entre films proches.
               </div>
 
               <div style={{ marginTop: 16, fontSize: 13, color: "#64748b" }}>
@@ -1037,8 +1170,8 @@ setDuelsResolved(0);
                     <div style={{ fontSize: 13, color: "#64748b" }}>Tri rapide des films</div>
                   </div>
                   <div style={{ borderRadius: 18, background: "#f8fafc", padding: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Phase 2</div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>Duels de départage</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Phase 1,5</div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>Gardez les 2 meilleurs du lot</div>
                   </div>
                 </div>
 
@@ -1181,7 +1314,7 @@ setDuelsResolved(0);
             </div>
 
             <button
-              onClick={openDuels}
+              onClick={openWarmup}
               style={{
                 marginTop: 16,
                 width: "100%",
@@ -1195,7 +1328,161 @@ setDuelsResolved(0);
                 cursor: "pointer",
               }}
             >
-              Passer aux duels
+              Passer au tour de chauffe
+            </button>
+          </div>
+        )}
+
+        {screen === "warmup" && (
+          <div>
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 10,
+                background: "rgba(248,250,252,0.96)",
+                backdropFilter: "blur(10px)",
+                paddingBottom: 12,
+                marginBottom: 16,
+                borderBottom: "1px solid #e2e8f0",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <PlayerBadge alias={alias} />
+                  <div>
+                    <div style={{ fontSize: 14, color: "#64748b" }}>Phase 1,5</div>
+                    <div style={{ fontSize: 20, fontWeight: 900 }}>Tour de chauffe</div>
+                  </div>
+                </div>
+                <BadgePill dark>
+                  Manche {Math.min(warmupRound + 1, warmupRoundsTotal)} / {warmupRoundsTotal}
+                </BadgePill>
+              </div>
+
+              <div style={{ fontSize: 14, color: "#64748b" }}>
+                Gardez les {warmupKeepCount} meilleurs du lot.
+              </div>
+            </div>
+
+            <ScreenCard style={{ marginBottom: 16 }}>
+              <div style={{ padding: 18 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>
+                  Sélectionnez exactement {warmupKeepCount} films
+                </div>
+                <div style={{ fontSize: 14, color: "#64748b" }}>
+                  Cette étape sert à dégrossir rapidement avant les vrais duels.
+                </div>
+              </div>
+            </ScreenCard>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {warmupBatch.map((movie) => {
+                const selected = warmupSelectedIds.includes(movie.id);
+
+                return (
+                  <motion.button
+                    key={movie.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => toggleWarmupSelection(movie.id)}
+                    style={{
+                      width: "100%",
+                      borderRadius: 24,
+                      border: selected ? "2px solid #4f46e5" : "1px solid #e2e8f0",
+                      background: selected ? "#eef2ff" : "#ffffff",
+                      padding: 12,
+                      textAlign: "left",
+                      boxShadow: selected
+                        ? "0 8px 18px rgba(79, 70, 229, 0.16)"
+                        : "0 4px 14px rgba(15, 23, 42, 0.04)",
+                    }}
+                  >
+                    <PosterBox movie={movie} size="tile" />
+
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
+                      {movie.title}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                      {movie.year} · {movie.genre}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: selected ? "#4f46e5" : "#f8fafc",
+                          color: selected ? "#ffffff" : "#0f172a",
+                          border: selected ? "none" : "1px solid #dbeafe",
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {selected ? "Sélectionné" : "Choisir"}
+                      </div>
+
+                      <div style={{ color: "#0f172a" }}>
+                        {iconForState(movieStates[movie.id] ?? "none")}
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={validateWarmupRound}
+              disabled={warmupSelectedIds.length !== warmupKeepCount}
+              style={{
+                marginTop: 16,
+                width: "100%",
+                height: 48,
+                borderRadius: 18,
+                border: "none",
+                background:
+                  warmupSelectedIds.length === warmupKeepCount ? "#4f46e5" : "#94a3b8",
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: 16,
+                cursor:
+                  warmupSelectedIds.length === warmupKeepCount ? "pointer" : "not-allowed",
+              }}
+            >
+              Valider mes {warmupKeepCount} choix
+            </button>
+
+            <button
+              onClick={skipWarmup}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                height: 48,
+                borderRadius: 18,
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#0f172a",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              Passer directement aux duels
             </button>
           </div>
         )}
