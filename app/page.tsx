@@ -682,7 +682,6 @@ export default function Page() {
   const [duelsSkipped, setDuelsSkipped] = useState(0);
   const [diagnostic, setDiagnostic] = useState("");
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [recentMovieIds, setRecentMovieIds] = useState<number[]>([]);
 
   useEffect(() => {
     async function loadMovies() {
