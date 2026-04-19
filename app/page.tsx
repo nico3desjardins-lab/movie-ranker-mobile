@@ -112,7 +112,9 @@ function buildInitialScores(
   movieStates: Record<number, MovieState>
 ) {
   return Object.fromEntries(
-    movies.map((m) => [m.id, stateMeta[movieStates[m.id] ?? "none"].weight])
+    movies
+      .filter((m) => (movieStates[m.id] ?? "none") !== "unseen")
+      .map((m) => [m.id, stateMeta[movieStates[m.id] ?? "none"].weight])
   ) as Record<number, number>;
 }
 
@@ -120,9 +122,13 @@ function chooseNextPair(
   movies: Movie[],
   scores: Record<number, number>,
   movieStates: Record<number, MovieState>,
-  recentPairs: string[]
+  recentPairs: string[],
+  recentMovieIds: number[]
 ): [Movie, Movie] | null {
-  const admissible = movies.filter((m) => (movieStates[m.id] ?? "none") !== "unseen");
+  const admissible = movies.filter((m) => {
+    const state = movieStates[m.id] ?? "none";
+    return state !== "unseen";
+  });
 
   if (admissible.length < 2) return null;
 
@@ -132,25 +138,58 @@ function chooseNextPair(
   });
 
   const pool = preferred.length >= 2 ? preferred : admissible;
-  const candidates: { pair: [Movie, Movie]; gap: number }[] = [];
 
-  for (let i = 0; i < pool.length; i++) {
-    for (let j = i + 1; j < pool.length; j++) {
-      const a = pool[i];
-      const b = pool[j];
-      const key = [a.id, b.id].sort((x, y) => x - y).join("-");
-      if (recentPairs.includes(key)) continue;
+  const buildCandidates = (strictCooldown: boolean) => {
+    const candidates: { pair: [Movie, Movie]; gap: number; freshnessPenalty: number }[] = [];
 
-      const gap = Math.abs((scores[a.id] ?? 1000) - (scores[b.id] ?? 1000));
-      candidates.push({ pair: [a, b], gap });
+    for (let i = 0; i < pool.length; i++) {
+      for (let j = i + 1; j < pool.length; j++) {
+        const a = pool[i];
+        const b = pool[j];
+
+        const key = [a.id, b.id].sort((x, y) => x - y).join("-");
+        if (recentPairs.includes(key)) continue;
+
+        if (strictCooldown) {
+          if (recentMovieIds.includes(a.id) || recentMovieIds.includes(b.id)) {
+            continue;
+          }
+        }
+
+        const gap = Math.abs((scores[a.id] ?? 1000) - (scores[b.id] ?? 1000));
+
+        const freshnessPenalty =
+          (recentMovieIds.includes(a.id) ? 1 : 0) +
+          (recentMovieIds.includes(b.id) ? 1 : 0);
+
+        candidates.push({
+          pair: [a, b],
+          gap,
+          freshnessPenalty,
+        });
+      }
     }
+
+    return candidates;
+  };
+
+  let candidates = buildCandidates(true);
+
+  if (!candidates.length) {
+    candidates = buildCandidates(false);
   }
 
   if (!candidates.length) {
     return pool.length >= 2 ? [pool[0], pool[1]] : null;
   }
 
-  candidates.sort((x, y) => x.gap - y.gap);
+  candidates.sort((x, y) => {
+    if (x.freshnessPenalty !== y.freshnessPenalty) {
+      return x.freshnessPenalty - y.freshnessPenalty;
+    }
+    return x.gap - y.gap;
+  });
+
   return candidates[0].pair;
 }
 
@@ -630,6 +669,7 @@ export default function Page() {
   const [triagePage, setTriagePage] = useState(0);
   const [screen, setScreen] = useState<"welcome" | "triage" | "duels" | "ranking">("welcome");
   const [alias, setAlias] = useState("");
+  const [recentMovieIds, setRecentMovieIds] = useState<number[]>([]);
   const [movieStates, setMovieStates] = useState<Record<number, MovieState>>(
     Object.fromEntries(fallbackMovies.map((m) => [m.id, "none"])) as Record<number, MovieState>
   );
@@ -642,6 +682,7 @@ export default function Page() {
   const [duelsSkipped, setDuelsSkipped] = useState(0);
   const [diagnostic, setDiagnostic] = useState("");
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [recentMovieIds, setRecentMovieIds] = useState<number[]>([]);
 
   useEffect(() => {
     async function loadMovies() {
@@ -763,9 +804,14 @@ export default function Page() {
   useEffect(() => {
     if (screen !== "duels") return;
     if (currentPair) return;
-    const nextPair = chooseNextPair(movies, scores, movieStates, recentPairs);
-    setCurrentPair(nextPair);
-  }, [screen, currentPair, movies, scores, movieStates, recentPairs]);
+const nextPair = chooseNextPair(
+  movies,
+  scores,
+  movieStates,
+  recentPairs,
+  recentMovieIds
+);    setCurrentPair(nextPair);
+}, [screen, currentPair, movies, scores, movieStates, recentPairs, recentMovieIds]);
 
   const goToNextTriageBatch = () => {
     const batchSize = 10;
@@ -822,35 +868,49 @@ export default function Page() {
     setScreen("triage");
   };
 
-  const openDuels = () => {
-    const initialScores = buildInitialScores(movies, movieStates);
-    setScores(initialScores);
-    setRecentPairs([]);
-    setCurrentPair(chooseNextPair(movies, initialScores, movieStates, []));
-    setScreen("duels");
-  };
+const openDuels = () => {
+  const initialScores = buildInitialScores(movies, movieStates);
+  setScores(initialScores);
+  setRecentPairs([]);
+  setRecentMovieIds([]);
+  setCurrentPair(
+    chooseNextPair(movies, initialScores, movieStates, [], [])
+  );
+  setScreen("duels");
+};
 
-  const resolveDuel = (winnerId?: number) => {
-    if (!currentPair) return;
+const resolveDuel = (winnerId?: number) => {
+  if (!currentPair) return;
 
-    const [left, right] = currentPair;
-    const pairKey = [left.id, right.id].sort((a, b) => a - b).join("-");
-    const nextRecentPairs = [...recentPairs.slice(-14), pairKey];
+  const [left, right] = currentPair;
+  const pairKey = [left.id, right.id].sort((a, b) => a - b).join("-");
+  const nextRecentPairs = [...recentPairs.slice(-14), pairKey];
+  const nextRecentMovieIds = [...recentMovieIds.slice(-5), left.id, right.id];
 
-    let nextScores = scores;
+  let nextScores = scores;
 
-    if (winnerId) {
-      const loserId = winnerId === left.id ? right.id : left.id;
-      nextScores = applyElo(scores, winnerId, loserId);
-      setScores(nextScores);
-      setDuelsResolved((n) => n + 1);
-    } else {
-      setDuelsSkipped((n) => n + 1);
-    }
+  if (winnerId) {
+    const loserId = winnerId === left.id ? right.id : left.id;
+    nextScores = applyElo(scores, winnerId, loserId);
+    setScores(nextScores);
+    setDuelsResolved((n) => n + 1);
+  } else {
+    setDuelsSkipped((n) => n + 1);
+  }
 
-    setRecentPairs(nextRecentPairs);
-    setCurrentPair(chooseNextPair(movies, nextScores, movieStates, nextRecentPairs));
-  };
+  setRecentPairs(nextRecentPairs);
+  setRecentMovieIds(nextRecentMovieIds);
+
+  setCurrentPair(
+    chooseNextPair(
+      movies,
+      nextScores,
+      movieStates,
+      nextRecentPairs,
+      nextRecentMovieIds
+    )
+  );
+};
 
   const resetAll = () => {
     const emptyStates = Object.fromEntries(
