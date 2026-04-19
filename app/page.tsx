@@ -22,9 +22,11 @@ type MovieState = (typeof stateCycle)[number];
 
 type Screen = "welcome" | "triage" | "warmup" | "duels" | "ranking";
 
+
 type Movie = {
   id: number;
   title: string;
+  titleFr?: string | null;
   year: number;
   genre: string;
   poster: string;
@@ -346,7 +348,7 @@ function PosterBox({
       {movie.posterUrl ? (
         <img
           src={movie.posterUrl}
-          alt={movie.title}
+          alt={getMovieTitle(movie)}
           style={{
             width: "100%",
             height: "100%",
@@ -389,7 +391,7 @@ function MovieTile({
       <PosterBox movie={movie} size="tile" />
 
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
-        {movie.title}
+        {getMovieTitle(movie)}
       </div>
       <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
         {movie.year} · {movie.genre}
@@ -524,7 +526,7 @@ function DuelCard({
               marginBottom: 6,
             }}
           >
-            {movie.title}
+            {getMovieTitle(movie)}
           </div>
           <div style={{ fontSize: 14, color: "#64748b" }}>
             {movie.year} · {movie.genre}
@@ -672,6 +674,10 @@ function PlayerBadge({ alias }: { alias: string }) {
   );
 }
 
+function getMovieTitle(movie: Movie) {
+  return movie.title;
+}
+
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>(fallbackMovies);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
@@ -747,14 +753,15 @@ export default function Page() {
       if (data && data.length > 0) {
         setDiagnostic(`supabase ok: ${data.length} films`);
 
-        const fetchedMovies: Movie[] = data.map((m) => ({
-          id: Number(m.id),
-          title: m.title_fr || m.title,
-          year: m.year ?? 0,
-          genre: m.genre ?? "",
-          poster: m.poster_emoji || "🎬",
-          posterUrl: m.poster_url ?? null,
-        }));
+const fetchedMovies: Movie[] = data.map((m) => ({
+  id: Number(m.id),
+  title: m.title,
+  titleFr: m.title_fr ?? null,
+  year: m.year ?? 0,
+  genre: m.genre ?? "",
+  poster: m.poster_emoji || "🎬",
+  posterUrl: m.poster_url ?? null,
+}));
 
         setMovies(fetchedMovies);
         setMoviesSource("supabase");
@@ -1408,7 +1415,7 @@ export default function Page() {
                     <PosterBox movie={movie} size="tile" />
 
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
-                      {movie.title}
+                      {getMovieTitle(movie)}
                     </div>
                     <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
                       {movie.year} · {movie.genre}
@@ -1746,7 +1753,7 @@ export default function Page() {
                             marginBottom: 4,
                           }}
                         >
-                          {movie.title}
+                          {getMovieTitle(movie)}
                         </div>
                         <div style={{ fontSize: 14, color: "#64748b" }}>
                           {movie.year} · {movie.genre}
