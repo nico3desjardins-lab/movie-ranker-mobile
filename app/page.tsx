@@ -6,7 +6,7 @@ import {
   Users, BarChart2, ArrowLeft, Zap, Undo2, AlertTriangle, Info,
   History, ChevronDown, ChevronUp, Search, X, Loader2, WifiOff
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../lib/supabase";
 
 // ═══════════════════════════════════════════════════
 // TYPES
