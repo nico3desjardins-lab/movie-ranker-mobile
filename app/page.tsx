@@ -1268,7 +1268,7 @@ export default function MovieRanker() {
               </Card>
             </motion.div>
           ) : (
-            <motion.div key={(currentPair?.[0]?.id || "") + (currentPair?.[1]?.id || "")} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+            <motion.div key={`${currentPair?.[0]?.id ?? ""}-${currentPair?.[1]?.id ?? ""}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "stretch", marginBottom: 12 }}>
                 <DuelCard movie={currentPair![0]} position="left" onChoose={() => resolveDuel(currentPair![0].id)} />
                 <DuelCard movie={currentPair![1]} position="right" onChoose={() => resolveDuel(currentPair![1].id)} />
